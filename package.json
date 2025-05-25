@@ -1,0 +1,13 @@
+{
+  "name": "@tertium/vscode-js-shared-configs",
+  "version": "0.1.0",
+  "description": "Visual Studio Code JS shared configs.",
+  "exports": {
+    "biome": "./biome.json"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vitalii Balabanov",
+  "license": "ISC"
+}
