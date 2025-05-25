@@ -1,16 +1,14 @@
 {
   "name": "@tertium/vscode-js-shared-configs",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Visual Studio Code JS shared configs.",
   "exports": {
     "biome": "./biome.json"
   },
   "scripts": {
-    "release:patch": "npm version patch && npm run release:git:hotfix",
-    "release:minor": "npm version minor && npm run release:git:normal",
-    "release:major": "npm version major && npm run release:git:normal",
-    "release:git:hotfix": "git fetch origin main:main && git add package.json && git commit -m \"update package.json version\" && git push origin main && git tag v$(node -p \"require('./package.json').version\") && git push origin --tags && git fetch origin develop:develop && git checkout develop && git merge main",
-    "release:git:normal": "git add package.json && git commit -m \"update package.json version\" && git checkout main && git merge develop && git push origin main && git tag v$(node -p \"require('./package.json').version\") && git push origin --tags",
+    "release:patch": "git checkout main && npm version patch && git push && git push --tags && npm publish --access public && git checkout develop && git rebase main && git push",
+    "release:minor": "git checkout develop && npm version minor && git push && git push --tags && git checkout main && git merge develop && git push && npm publish --access public",
+    "release:major": "git checkout develop && npm version major && git push && git push --tags && git checkout main && git merge develop && git push && npm publish --access public",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vitalii Balabanov",
