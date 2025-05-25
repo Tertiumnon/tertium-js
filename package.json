@@ -1,15 +1,16 @@
 {
   "name": "@tertium/vscode-js-shared-configs",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Visual Studio Code JS shared configs.",
   "exports": {
     "biome": "./biome.json"
   },
   "scripts": {
-    "release:patch": "npm version patch && npm run release:git",
-    "release:minor": "npm version minor && npm run release:git",
-    "release:major": "npm version major && npm run release:git",
-    "release:git": "git add package.json && git commit -m \"update package.json version\" && git checkout main && git merge develop && git push origin main && git tag v$(node -p \"require('./package.json').version\") && git push origin --tags",
+    "release:patch": "npm version patch && npm run release:git:hotfix",
+    "release:minor": "npm version minor && npm run release:git:normal",
+    "release:major": "npm version major && npm run release:git:normal",
+    "release:git:hotfix": "git fetch origin main:main && git add package.json && git commit -m \"update package.json version\" && git push origin main && git tag v$(node -p \"require('./package.json').version\") && git push origin --tags && git fetch origin develop:develop && git checkout develop && git merge main",
+    "release:git:normal": "git add package.json && git commit -m \"update package.json version\" && git checkout main && git merge develop && git push origin main && git tag v$(node -p \"require('./package.json').version\") && git push origin --tags",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vitalii Balabanov",
