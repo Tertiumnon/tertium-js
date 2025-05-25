@@ -6,7 +6,9 @@
     "biome": "./biome.json"
   },
   "scripts": {
-    "prepublishOnly": "npm version patch --no-git-tag-version",
+    "release:patch": "npm version patch --no-git-tag-version",
+    "release:minor": "npm version minor --no-git-tag-version",
+    "release:major": "npm version major --no-git-tag-version",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vitalii Balabanov",
