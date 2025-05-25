@@ -1,11 +1,14 @@
 {
   "name": "@tertium/vscode-js-shared-configs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Visual Studio Code JS shared configs.",
   "exports": {
     "biome": "./biome.json"
   },
   "scripts": {
+    "release:patch": "npm version patch --no-git-tag-version",
+    "release:minor": "npm version minor --no-git-tag-version",
+    "release:major": "npm version major --no-git-tag-version",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vitalii Balabanov",
