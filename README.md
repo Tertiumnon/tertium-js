@@ -1,6 +1,4 @@
-# @tertium/vscode-js-shared-configs
-
-Visual Studio Code JS shared configs
+# @tertium/shared-js-configs-and-types
 
 ## List
 
