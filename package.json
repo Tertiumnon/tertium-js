@@ -2,7 +2,7 @@
   "name": "@tertium/vscode-js-shared-configs",
   "version": "0.4.2",
   "description": "Visual Studio Code JS shared configs.",
-  "types": "types/index.ts",
+  "types": "types/index.d.ts",
   "exports": {
     "biome": "./biome.json"
   },
