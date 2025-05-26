@@ -2,12 +2,19 @@
   "$schema": "https://biomejs.dev/schemas/1.7.3/schema.json",
   "organizeImports": {},
   "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
     "lineWidth": 120,
     "lineEnding": "lf"
   },
   "javascript": {
     "formatter": {
-      "quoteStyle": "double"
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "arrowParentheses": "asNeeded",
+      "bracketSameLine": true,
+      "bracketSpacing": true
     }
   },
   "linter": {
