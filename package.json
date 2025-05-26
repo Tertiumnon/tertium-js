@@ -6,6 +6,9 @@
   "exports": {
     ".": {
       "types": "./types/index.d.ts"
+    },
+    "./biome": {
+      "default": "./biome.json"
     }
   },
   "files": [
