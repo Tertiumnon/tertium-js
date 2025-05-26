@@ -1,6 +1,6 @@
 {
   "name": "@tertium/vscode-js-shared-configs",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Visual Studio Code JS shared configs.",
   "types": "types/index.d.ts",
   "exports": {
