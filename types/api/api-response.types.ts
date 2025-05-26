@@ -1,11 +1,12 @@
 export interface ApiResponseError {
   message: string;
-  details?: string;
+  details?: unknown;
 }
 
 export interface ApiResponse<T, M> {
   data: T;
   meta: M;
+  errors?: ApiResponseError[];
 }
 
 /**
@@ -14,7 +15,8 @@ export interface ApiResponse<T, M> {
  * type User = { id: number; name: string };
  * const response: ApiResponseFindAll<User> = {
  *   data: [ { id: 1, name: 'Alice' }, { id: 2, name: 'Bob' } ],
- *   meta: { total: 2 }
+ *   meta: { total: 2 },
+ *   errors: []
  * };
  */
 export type ApiResponseFindAll<T, M = undefined> = ApiResponse<T[], M>;
@@ -25,7 +27,8 @@ export type ApiResponseFindAll<T, M = undefined> = ApiResponse<T[], M>;
  * type User = { id: number; name: string };
  * const response: ApiResponseFindOne<User> = {
  *   data: { id: 1, name: 'Alice' },
- *   meta: {}
+ *   meta: {},
+ *   errors: []
  * };
  */
 export type ApiResponseFindOne<T, M = undefined> = ApiResponse<T | null, M>;
@@ -36,7 +39,8 @@ export type ApiResponseFindOne<T, M = undefined> = ApiResponse<T | null, M>;
  * type User = { id: number; name: string };
  * const response: ApiResponseCreate<User> = {
  *   data: { id: 3, name: 'Charlie' },
- *   meta: {}
+ *   meta: {},
+ *   errors: []
  * };
  */
 export type ApiResponseCreate<T, M = undefined> = ApiResponse<T, M>;
@@ -47,7 +51,8 @@ export type ApiResponseCreate<T, M = undefined> = ApiResponse<T, M>;
  * type User = { id: number; name: string };
  * const response: ApiResponseUpdate<User> = {
  *   data: { id: 1, name: 'Alice Updated' },
- *   meta: {}
+ *   meta: {},
+ *   errors: []
  * };
  */
 export type ApiResponseUpdate<T, M = undefined> = ApiResponse<T, M>;
@@ -57,7 +62,8 @@ export type ApiResponseUpdate<T, M = undefined> = ApiResponse<T, M>;
  * @example
  * const response: ApiResponseDelete = {
  *   data: null,
- *   meta: { success: true }
+ *   meta: { success: true },
+ *   errors: []
  * };
  */
 export type ApiResponseDelete<M = undefined> = ApiResponse<null, M>;
