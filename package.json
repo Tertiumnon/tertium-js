@@ -1,6 +1,6 @@
 {
   "name": "@tertium/shared-js-configs-and-types",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Shared JS configs and types.",
   "types": "types/index.d.ts",
   "exports": {
