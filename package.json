@@ -4,8 +4,14 @@
   "description": "Shared JS configs and types.",
   "types": "types/index.d.ts",
   "exports": {
-    "biome": "./biome.json"
+    ".": {
+      "types": "./types/index.d.ts"
+    }
   },
+  "files": [
+    "types/",
+    "biome.json"
+  ],
   "scripts": {
     "release:patch": "git checkout main && npm version patch && git push && git push --tags && git checkout develop && git rebase main && git push && git checkout main",
     "release:minor": "git checkout develop && npm version minor && git push && git push --tags && git checkout main && git merge develop && git push && git checkout develop",
