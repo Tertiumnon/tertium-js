@@ -9,11 +9,15 @@
     },
     "./biome": {
       "default": "./biome.json"
+    },
+    "./prettierrc": {
+      "default": "./.prettierrc"
     }
   },
   "files": [
     "types/",
-    "biome.json"
+    "biome.json",
+    ".prettierrc"
   ],
   "scripts": {
     "release:patch": "git checkout main && npm version patch && git push && git push --tags && git checkout develop && git rebase main && git push && git checkout main",
