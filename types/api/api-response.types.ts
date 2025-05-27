@@ -15,11 +15,54 @@ export interface ApiResponse<T, M> {
  * type User = { id: number; name: string };
  * const response: ApiResponseFindAll<User> = {
  *   data: [ { id: 1, name: 'Alice' }, { id: 2, name: 'Bob' } ],
- *   meta: { total: 2 },
+ *   meta: {
+ *     total: 100,
+ *     page: 1,
+ *     pageSize: 20,
+ *     pageCount: 5,
+ *     hasNextPage: true,
+ *     hasPreviousPage: false,
+ *     sort: '-createdAt',
+ *     filter: { isActive: true },
+ *     search: 'alice'
+ *   },
  *   errors: []
  * };
  */
-export type ApiResponseFindAll<T, M = undefined> = ApiResponse<T[], M>;
+/**
+ * Common meta properties for paginated/find-all API responses.
+ * Supports both offset-based and cursor-based pagination.
+ */
+export interface ApiResponseFindAllMeta {
+  /** Total number of items available (across all pages) */
+  total: number;
+  /** Current page number (1-based) */
+  page?: number;
+  /** Number of items per page */
+  pageSize?: number;
+  /** Total number of pages */
+  pageCount?: number;
+  /** Are there more pages after this one? */
+  hasNextPage?: boolean;
+  /** Are there pages before this one? */
+  hasPreviousPage?: boolean;
+  /** Current sort applied */
+  sort?: string;
+  /** Current filter applied */
+  filter?: Record<string, unknown>;
+  /** Current search term */
+  search?: string;
+  /**
+   * Cursor to fetch the next page (for cursor-based pagination)
+   */
+  nextPage?: string;
+  /**
+   * Cursor to fetch the previous page (for cursor-based pagination)
+   */
+  prevPage?: string;
+}
+
+export type ApiResponseFindAll<T, M = ApiResponseFindAllMeta> = ApiResponse<T[], M>;
 
 /**
  * Response for finding a single resource (GET /resources/:id)
