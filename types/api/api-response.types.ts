@@ -5,7 +5,7 @@ export interface ApiResponseError {
 
 export interface ApiResponse<T, M> {
   data: T;
-  meta: M;
+  meta?: M;
   errors?: ApiResponseError[];
 }
 
@@ -87,6 +87,21 @@ export type ApiResponseFindOne<T, M = undefined> = ApiResponse<T | null, M>;
  * };
  */
 export type ApiResponseCreate<T, M = undefined> = ApiResponse<T, M>;
+
+/**
+ * Response for creating multiple resources (POST /resources/bulk)
+ * @example
+ * type User = { id: number; name: string };
+ * const response: ApiResponseCreateMany<User> = {
+ *   data: [
+ *     { id: 3, name: 'Charlie' },
+ *     { id: 4, name: 'Dana' }
+ *   ],
+ *   meta: {},
+ *   errors: []
+ * };
+ */
+export type ApiResponseCreateMany<T, M = undefined> = ApiResponse<T[], M>;
 
 /**
  * Response for updating a resource (PUT/PATCH /resources/:id)
