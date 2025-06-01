@@ -24,7 +24,7 @@
       "style": {
         "useImportType": "off"
       }
-    }
+    },
+    "ignore": ["node_modules", "dist", "build", "coverage", "upload", "*.d.ts", "*.d.mts", "*.d.cts", "biome.json"]
   }
 }
-
