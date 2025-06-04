@@ -25,7 +25,7 @@
  *   pageSize: 20
  * };
  */
-export interface ApiRequestFindAll<F = Record<string, unknown>> {
+export interface ApiRequestFindAllParams<F = Record<string, unknown>> {
   /**
    * Free-text search across multiple fields.
    * Example: 'alice'
@@ -55,7 +55,7 @@ export interface ApiRequestFindAll<F = Record<string, unknown>> {
  * @example
  * const params: ApiRequestFindOne = { id: 1 };
  */
-export interface ApiRequestFindOne<ID = number | string> {
+export interface ApiRequestFindOneParams<ID = number | string> {
   id: ID;
 }
 
@@ -66,7 +66,7 @@ export interface ApiRequestFindOne<ID = number | string> {
  *   data: { name: 'Charlie' }
  * };
  */
-export interface ApiRequestCreate<T = unknown> {
+export interface ApiRequestCreateParams<T = unknown> {
   data: T;
 }
 
@@ -78,7 +78,7 @@ export interface ApiRequestCreate<T = unknown> {
  *   data: { name: 'Alice Updated' }
  * };
  */
-export interface ApiRequestUpdate<T = unknown, ID = number | string> {
+export interface ApiRequestUpdateParams<T = unknown, ID = number | string> {
   id: ID;
   data: Partial<T>;
 }
@@ -88,6 +88,6 @@ export interface ApiRequestUpdate<T = unknown, ID = number | string> {
  * @example
  * const params: ApiRequestDelete = { id: 1 };
  */
-export interface ApiRequestDelete<ID = number | string> {
+export interface ApiRequestDeleteParams<ID = number | string> {
   id: ID;
 }

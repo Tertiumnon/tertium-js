@@ -6,10 +6,10 @@ import {
   ApiResponseUpdate,
 } from "../api/api-response.types";
 
-export interface Repo<T, CreateDto, UpdateDto> {
+export interface Repo<T, EntityId, CreateDto, UpdateDto> {
   findAll(): Promise<ApiResponseFindAll<T>>;
-  findOne(id: string): Promise<ApiResponseFindOne<T>>;
+  findOne(id: EntityId): Promise<ApiResponseFindOne<T>>;
   create(dto: CreateDto): Promise<ApiResponseCreate<T>>;
-  update(id: string, dto: UpdateDto): Promise<ApiResponseUpdate<T>>;
-  delete(id: string): Promise<ApiResponseDelete>;
+  update(id: EntityId, dto: UpdateDto): Promise<ApiResponseUpdate<T>>;
+  delete(id: EntityId): Promise<ApiResponseDelete>;
 }
