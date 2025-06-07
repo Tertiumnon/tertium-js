@@ -12,17 +12,21 @@
     },
     "./prettierrc": {
       "default": "./.prettierrc"
+    },
+    "./scripts/release": {
+      "default": "./scripts/release.js"
     }
   },
   "files": [
     "types/",
     "biome.json",
-    ".prettierrc"
+    ".prettierrc",
+    "scripts/"
   ],
   "scripts": {
-    "release:patch": "git checkout main && npm version patch && git push && git push --tags && git checkout develop && git rebase main && git push && git checkout main",
-    "release:minor": "git checkout develop && npm version minor && git push && git push --tags && git checkout main && git merge develop && git push && git checkout develop",
-    "release:major": "git checkout develop && npm version major && git push && git push --tags && git checkout main && git merge develop && git push && git checkout develop",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vitalii Balabanov",
