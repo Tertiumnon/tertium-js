@@ -1,5 +1,5 @@
 {
-  "name": "@tertium/shared-js-configs-and-types",
+  "name": "@tertium/js",
   "version": "0.14.0",
   "description": "Shared JS configs and types.",
   "types": "types/index.d.ts",
@@ -8,6 +8,9 @@
       "types": "./types/index.d.ts"
     },
     "./biome": {
+      "default": "./biome.json"
+    },
+    "./biome.json": {
       "default": "./biome.json"
     },
     "./prettierrc": {

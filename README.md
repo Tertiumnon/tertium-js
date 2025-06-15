@@ -1,4 +1,4 @@
-# @tertium/shared-js-configs-and-types
+# @tertium/js
 
 ## List
 
@@ -12,10 +12,10 @@ This package provides shared TypeScript type definitions that can be imported in
 
 ```typescript
 // Import all types
-import { ApiResponse, ApiRequest, Repo, Option, Ref } from '@tertium/shared-js-configs-and-types';
+import { ApiResponse, ApiRequest, Repo, Option, Ref } from '@tertium/js';
 
 // Or import specific types
-import { ApiResponse } from '@tertium/shared-js-configs-and-types';
+import { ApiResponse } from '@tertium/js';
 ```
 
 ### Available Types
@@ -39,7 +39,7 @@ This package provides Node.js scripts for managing releases:
 
 ```js
 // Import the release script
-const release = require('@tertium/shared-js-configs-and-types/scripts/release');
+const release = require('@tertium/js/scripts/release');
 ```
 
 ### Usage
@@ -48,9 +48,9 @@ You can use the scripts directly in your package.json:
 
 ```json
 "scripts": {
-  "release:patch": "node node_modules/@tertium/shared-js-configs-and-types/scripts/release.js patch",
-  "release:minor": "node node_modules/@tertium/shared-js-configs-and-types/scripts/release.js minor",
-  "release:major": "node node_modules/@tertium/shared-js-configs-and-types/scripts/release.js major"
+  "release:patch": "node node_modules/@tertium/js/scripts/release.js patch",
+  "release:minor": "node node_modules/@tertium/js/scripts/release.js minor",
+  "release:major": "node node_modules/@tertium/js/scripts/release.js major"
 }
 ```
 
