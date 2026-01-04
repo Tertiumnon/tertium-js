@@ -7,24 +7,29 @@
     ".": {
       "types": "./types/index.d.ts"
     },
-    "./biome": {
-      "default": "./biome.json"
-    },
-    "./biome.json": {
-      "default": "./biome.json"
-    },
     "./prettierrc": {
       "default": "./.prettierrc"
     },
     "./scripts/release": {
       "default": "./scripts/release.js"
     }
+    ,
+    "./auth": {
+      "types": "./types/auth/index.d.ts",
+      "default": "./core/auth/src/index.ts"
+    }
+    ,
+    "./entities": {
+      "types": "./types/entities/index.d.ts",
+      "default": "./entities/index.ts"
+    }
   },
-  "files": [
+    "files": [
     "types/",
-    "biome.json",
     ".prettierrc",
-    "scripts/"
+    "scripts/",
+    "core/auth/src/",
+    "entities/"
   ],
   "scripts": {
     "release:patch": "node scripts/release.js patch",

@@ -1,8 +1,1 @@
-export interface Option<T> {
-  label: string;
-  value: T;
-  id?: string | number;
-  disabled?: boolean;
-  hidden?: boolean;
-  selected?: boolean;
-}
+export * from '../../core/types/form/option.types';

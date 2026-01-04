@@ -1,3 +1,13 @@
+# Ruler generated files
+.ruler/
+.ruler*
+AGENTS.md
+
+# Common ignores
+node_modules/
+dist/
+build/
+.DS_Store
 # File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,linux,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,linux,node
@@ -180,3 +190,10 @@ dist
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 
+
+## Ignore all dot-files and dot-folders (but keep common repo files)
+.*
+!/.git
+!/.gitignore
+!/.github
+!/.vscode
