@@ -1,1 +1,14 @@
-{}
+{
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true
+  },
+  "files": {
+    "includes": ["app/**", "src/**", "test/**"],
+    "ignoreUnknown": true
+  }
+}

@@ -1,12 +1,12 @@
 # @tertium/js
 
-Shared JavaScript utilities, release scripts and TypeScript types you can reuse across projects.
+Shared JavaScript utilities and release scripts you can reuse across projects.
 
 ## Table of contents
 
 - Installation
 - Usage
-  - TypeScript types
+  - Importing modules
   - Release scripts
   - Cleaning build folders
 - Contributing
@@ -21,17 +21,23 @@ npm install @tertium/js --save-dev
 
 ## Usage
 
-### TypeScript types
 
-This package exports shared TypeScript types you can import directly:
+### Importing modules
+
+This package now exposes subpath imports. Instead of importing from the package root, import the specific area you need. Examples:
 
 ```typescript
-// Import multiple types
-import { ApiResponse, ApiRequest, Repo, Option, Ref } from '@tertium/js';
+// Import a type or helper from the core area
+import { Repo } from "@tertium/js/core/repo";
 
-// Or import a single type
-import { ApiResponse } from '@tertium/js';
+// Import an entity helper
+import { Post } from "@tertium/js/entities/post";
 ```
+
+Notes:
+
+- The package no longer publishes a single `types` entry in `package.json`; consumers should import the modules they need from the subpaths above.
+- Scripts are available under the `scripts` subpath (see the Release scripts section below).
 
 ### Release scripts
 
@@ -80,7 +86,7 @@ If you consume `@tertium/js` from another project, reference the script directly
 Then run from your project:
 
 ```powershell
-# Remove default (./dist)
+# Delete default (./dist)
 npm run clean
 
 # Pass multiple targets
@@ -98,4 +104,3 @@ Notes for consumers:
 ## Contributing
 
 Contributions, issues and pull requests are welcome. If you add features that change the exported types or scripts, please update the documentation here.
-

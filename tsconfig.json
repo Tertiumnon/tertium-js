@@ -4,12 +4,12 @@
     "module": "commonjs",
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "types",
+    "rootDir": "app",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["types/**/*.ts", "types/**/*.d.ts"],
+  "include": ["app/**/*.ts", "app/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
