@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-vars */
 
-const { execSync } = require("node:child_process");
-const { exit } = require("node:process");
+import { execSync } from "node:child_process";
+import { exit } from "node:process";
 
 /**
  * Execute a command and print its output

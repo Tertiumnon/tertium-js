@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-/* eslint-disable @typescript-eslint/no-require-imports */
 // Simple cross-platform cleaning script.
 // Usage:
 //   node scripts/clean.js            # removes ./dist
 //   node scripts/clean.js dist build # removes ./dist and ./build
 
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
 
 const args = process.argv.slice(2);
 const targets = args.length ? args : ["dist"];
