@@ -1,6 +1,6 @@
 # @tertium/js
 
-Shared JavaScript utilities and release scripts you can reuse across projects.
+A reusable TypeScript library providing shared core utilities, entity models, and release automation scripts for JavaScript projects. Includes abstractions for APIs, authentication, filtering, logging, repositories, and domain entities (users, posts, comments).
 
 ## Table of contents
 
@@ -24,20 +24,41 @@ npm install @tertium/js --save-dev
 
 ### Importing modules
 
-This package now exposes subpath imports. Instead of importing from the package root, import the specific area you need. Examples:
+This package exposes subpath imports organized by domain. Import the specific modules you need rather than the package root.
+
+#### Core utilities (`./core/*`)
+
+Core modules provide foundational abstractions and utilities:
+
+- **API & HTTP**: `api`, `api-request`, `api-response` — Types and utilities for API communication
+- **Authentication**: `auth` — Auth helpers and utilities
+- **Data management**: `entity`, `entity-ref`, `repo` — Base classes and types for entity management and repository patterns
+- **Filtering & forms**: `filter`, `form` — Types for filtering and form handling
+- **Logging**: `log` — Logging service and types
+- **Utilities**: `option`, `ref`, `time` — General utility types for options, references, and time handling
+
+Example:
 
 ```typescript
-// Import a type or helper from the core area
 import { Repo } from "@tertium/js/core/repo";
-
-// Import an entity helper
-import { Post } from "@tertium/js/entities/post";
+import type { ApiResponse } from "@tertium/js/core/api-response";
+import { LogService } from "@tertium/js/core/log";
 ```
 
-Notes:
+#### Entity models (`./entities/*`)
 
-- The package no longer publishes a single `types` entry in `package.json`; consumers should import the modules they need from the subpaths above.
-- Scripts are available under the `scripts` subpath (see the Release scripts section below).
+Domain entity classes and utilities for common models:
+
+- **User**: User entity class and utilities
+- **Post**: Post entity class and utilities
+- **Comment**: Comment entity class and utilities
+
+Example:
+
+```typescript
+import { Post } from "@tertium/js/entities/post";
+import { User } from "@tertium/js/entities/user";
+```
 
 ### Release scripts
 
