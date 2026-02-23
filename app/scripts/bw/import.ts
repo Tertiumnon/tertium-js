@@ -46,24 +46,21 @@ function createBwItem(projectName: string, envVars: Record<string, string>) {
 
   const item = {
     passwordHistory: [],
-    revisionDate: null,
-    creationDate: null,
+    revisionDate: new Date().toISOString(),
+    creationDate: new Date().toISOString(),
     deletedDate: null,
     archivedDate: null,
     organizationId: null,
-    collectionIds: null,
+    collectionIds: [],
     folderId: null,
-    type: 1,
+    type: 2,
     name: projectName,
     notes: `Environment variables for ${projectName}`,
     favorite: false,
     fields,
-    login: null,
-    secureNote: null,
-    card: null,
-    identity: null,
-    sshKey: null,
-    reprompt: 0
+    secureNote: {
+      type: 0
+    }
   };
 
   const json = JSON.stringify(item);
@@ -80,14 +77,14 @@ function createBwItem(projectName: string, envVars: Record<string, string>) {
 function updateBwItem(projectName: string, envVars: Record<string, string>) {
   const item = {
     passwordHistory: [],
-    revisionDate: null,
-    creationDate: null,
+    revisionDate: new Date().toISOString(),
+    creationDate: new Date().toISOString(),
     deletedDate: null,
     archivedDate: null,
     organizationId: null,
-    collectionIds: null,
+    collectionIds: [],
     folderId: null,
-    type: 1,
+    type: 2,
     name: projectName,
     notes: `Environment variables for ${projectName}`,
     favorite: false,
@@ -96,12 +93,9 @@ function updateBwItem(projectName: string, envVars: Record<string, string>) {
       name,
       value
     })),
-    login: null,
-    secureNote: null,
-    card: null,
-    identity: null,
-    sshKey: null,
-    reprompt: 0
+    secureNote: {
+      type: 0
+    }
   };
 
   const json = JSON.stringify(item);
@@ -124,13 +118,14 @@ async function main() {
 
     try {
       const status = JSON.parse(execSync('bw status', { encoding: 'utf-8' }));
-      if (!status.authenticated) {
+      if (status.status === 'unauthenticated') {
         throw new Error('Not authenticated with Bitwarden. Run: bw login');
       }
-      if (status.locked) {
+      if (status.status === 'locked') {
         throw new Error('Vault is locked. Run: bw unlock');
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Vault')) throw error;
       throw new Error('Vault authentication failed');
     }
 
