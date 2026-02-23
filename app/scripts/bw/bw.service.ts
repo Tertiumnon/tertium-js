@@ -33,9 +33,12 @@ export class BitwaidenService {
   }
 
   login(): void {
-    console.log('Not logged into Bitwarden. Please login...');
     try {
-      execSync('bw login', { stdio: 'inherit' });
+      const status = JSON.parse(execSync('bw status', { encoding: 'utf-8' })) as BwStatus;
+      if (!status.authenticated) {
+        console.log('Not logged into Bitwarden. Please login...');
+        execSync('bw login', { stdio: 'inherit' });
+      }
     } catch {
       throw new Error(ERROR_MESSAGES.LOGIN_FAILED);
     }
@@ -43,6 +46,11 @@ export class BitwaidenService {
 
   unlockVault(): void {
     try {
+      // Skip if session is already set via environment
+      if (process.env.BW_SESSION) {
+        return;
+      }
+
       const status = JSON.parse(execSync('bw status', { encoding: 'utf-8' })) as BwStatus;
       if (status.locked) {
         console.log('Vault is locked. Unlocking...');
@@ -77,11 +85,14 @@ export class BitwaidenService {
       throw new Error(ERROR_MESSAGES.CLI_NOT_INSTALLED);
     }
 
-    if (!this.checkAuthentication()) {
-      this.login();
-    }
+    // If BW_SESSION is already set, skip login/unlock
+    if (!process.env.BW_SESSION) {
+      if (!this.checkAuthentication()) {
+        this.login();
+      }
 
-    this.unlockVault();
+      this.unlockVault();
+    }
 
     const projectSecrets = BwUtils.getProjectSecrets(this.project);
     console.log(`Loading secrets for ${this.project}...`);

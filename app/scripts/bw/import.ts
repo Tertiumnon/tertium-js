@@ -3,186 +3,184 @@
  * Bitwarden CLI .env Importer
  * Imports environment variables from .env files into Bitwarden
  * Usage: bun import.ts <project-name> [.env-file-path]
- * Example: bun import.ts moj-grad-api moj-grad-api/.env
+ * Example: bun import.ts moj-grad-api
+ * Example: bun import.ts moj-grad-api .env
  */
 
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import readline from 'readline';
 
 import { AVAILABLE_PROJECTS, ERROR_MESSAGES } from './bw.constants';
 import { BwUtils } from './bw.utils';
 
 const PROJECT = Bun.argv[2];
-const ENV_FILE = Bun.argv[3];
+const ENV_FILE = Bun.argv[3] || '.env';
 
 if (!PROJECT) {
   console.error('Usage: bun import.ts <project-name> [.env-file-path]');
-  console.error('Example: bun import.ts moj-grad-api moj-grad-api/.env');
+  console.error('Example: bun import.ts moj-grad-api');
+  console.error('Example: bun import.ts moj-grad-api .env');
   console.error('\nAvailable projects:');
   AVAILABLE_PROJECTS.forEach(p => console.error(`  - ${p}`));
   process.exit(1);
 }
 
-function checkBwCliInstalled() {
-  try {
-    execSync('bw --version', { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
+function parseEnvFile(filePath: string): Record<string, string> {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const env: Record<string, string> = {};
+
+  content.split('\n').forEach(line => {
+    line = line.trim();
+    if (!line || line.startsWith('#')) return;
+    const [key, ...valueParts] = line.split('=');
+    if (key) env[key.trim()] = valueParts.join('=').trim();
+  });
+
+  return env;
 }
 
-function checkBwAuthentication() {
-  try {
-    const status = JSON.parse(execSync('bw status', { encoding: 'utf-8' }));
-    return status.authenticated;
-  } catch {
-    return false;
-  }
-}
+function createBwItem(projectName: string, envVars: Record<string, string>) {
+  const fields = Object.entries(envVars).map(([name, value]) => ({
+    type: 0,
+    name,
+    value
+  }));
 
-function loginToBitwarden() {
-  console.log('Not logged into Bitwarden. Logging in...');
-  try {
-    execSync('bw login', { stdio: 'inherit' });
-  } catch {
-    throw new Error(ERROR_MESSAGES.LOGIN_FAILED);
-  }
-}
-
-function unlockVault() {
-  try {
-    const status = JSON.parse(execSync('bw status', { encoding: 'utf-8' }));
-    if (status.locked) {
-      console.log('Vault is locked. Unlocking...');
-      const session = execSync('bw unlock --raw', { encoding: 'utf-8' }).trim();
-      process.env.BW_SESSION = session;
-    }
-  } catch {
-    throw new Error(ERROR_MESSAGES.UNLOCK_FAILED);
-  }
-}
-
-function getBwItem(itemName: string) {
-  try {
-    const item = JSON.parse(execSync(`bw get item "${itemName}"`, { encoding: 'utf-8' }));
-    return item;
-  } catch {
-    return createNewBwItem(itemName);
-  }
-}
-
-function createNewBwItem(itemName: string) {
-  const template = {
-    object: 'item',
-    type: 2, // Secure Note
-    name: itemName,
-    login: {},
-    fields: [],
-    notes: `Environment variables for ${itemName}`
+  const item = {
+    passwordHistory: [],
+    revisionDate: null,
+    creationDate: null,
+    deletedDate: null,
+    archivedDate: null,
+    organizationId: null,
+    collectionIds: null,
+    folderId: null,
+    type: 1,
+    name: projectName,
+    notes: `Environment variables for ${projectName}`,
+    favorite: false,
+    fields,
+    login: null,
+    secureNote: null,
+    card: null,
+    identity: null,
+    sshKey: null,
+    reprompt: 0
   };
 
-  const tempFile = BwUtils.getTempFilePath();
-  BwUtils.writeTempFile(tempFile, template);
+  const json = JSON.stringify(item);
+  const encoded = Buffer.from(json).toString('base64');
 
   try {
-    const output = execSync(`bw create item ${tempFile}`, { encoding: 'utf-8' });
-    const result = JSON.parse(output);
-    BwUtils.deleteTempFile(tempFile);
-    return result;
+    const result = execSync(`bw create item "${encoded}"`, { encoding: 'utf-8' });
+    return JSON.parse(result);
   } catch (error) {
-    BwUtils.deleteTempFile(tempFile);
-    throw new Error(ERROR_MESSAGES.CREATE_FAILED);
+    throw new Error(`Failed to create Bitwarden item: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-function updateBwItem(item: any, envVars: any) {
-  BwUtils.updateItemFields(item, envVars);
+function updateBwItem(projectName: string, envVars: Record<string, string>) {
+  const item = {
+    passwordHistory: [],
+    revisionDate: null,
+    creationDate: null,
+    deletedDate: null,
+    archivedDate: null,
+    organizationId: null,
+    collectionIds: null,
+    folderId: null,
+    type: 1,
+    name: projectName,
+    notes: `Environment variables for ${projectName}`,
+    favorite: false,
+    fields: Object.entries(envVars).map(([name, value]) => ({
+      type: 0,
+      name,
+      value
+    })),
+    login: null,
+    secureNote: null,
+    card: null,
+    identity: null,
+    sshKey: null,
+    reprompt: 0
+  };
 
-  const tempFile = BwUtils.getTempFilePath();
-  BwUtils.writeTempFile(tempFile, item);
+  const json = JSON.stringify(item);
+  const encoded = Buffer.from(json).toString('base64');
 
   try {
-    execSync(`bw edit item ${item.id} ${tempFile}`, { stdio: 'ignore' });
-    BwUtils.deleteTempFile(tempFile);
-    return true;
-  } catch {
-    BwUtils.deleteTempFile(tempFile);
-    throw new Error(ERROR_MESSAGES.UPDATE_FAILED);
+    execSync(`bw edit item "${projectName}" "${encoded}"`, { encoding: 'utf-8' });
+  } catch (error) {
+    throw new Error(`Failed to update item: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
-
-function askConfirmation(message: string) {
-  return new Promise<boolean>((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
-    rl.question(message + ' (y/n): ', (answer: string) => {
-      rl.close();
-      resolve(answer.toLowerCase() === 'y');
-    });
-  });
 }
 
 async function main() {
   try {
     BwUtils.validateProject(PROJECT);
 
-    if (!checkBwCliInstalled()) {
+    try {
+      execSync('bw --version', { stdio: 'ignore' });
+    } catch {
       throw new Error(ERROR_MESSAGES.CLI_NOT_INSTALLED);
     }
 
-    if (!checkBwAuthentication()) {
-      loginToBitwarden();
+    try {
+      const status = JSON.parse(execSync('bw status', { encoding: 'utf-8' }));
+      if (!status.authenticated) {
+        throw new Error('Not authenticated with Bitwarden. Run: bw login');
+      }
+      if (status.locked) {
+        throw new Error('Vault is locked. Run: bw unlock');
+      }
+    } catch {
+      throw new Error('Vault authentication failed');
     }
 
-    unlockVault();
-
-    const envFilePath = ENV_FILE || path.join(PROJECT, '.env');
+    const envFilePath = path.isAbsolute(ENV_FILE) ? ENV_FILE : path.join(process.cwd(), ENV_FILE);
 
     if (!fs.existsSync(envFilePath)) {
       throw new Error(`${ERROR_MESSAGES.FILE_NOT_FOUND}: ${envFilePath}`);
     }
 
-    console.log(`\nReading .env file from: ${envFilePath}`);
-    const envVars = BwUtils.parseEnvFile(envFilePath);
+    console.log(`Reading .env file from: ${envFilePath}`);
+    const envVars = parseEnvFile(envFilePath);
 
     if (Object.keys(envVars).length === 0) {
       throw new Error('No environment variables found in .env file');
     }
 
     console.log(`\nFound ${Object.keys(envVars).length} environment variables:`);
-    BwUtils.formatEnvDisplay(envVars).forEach(line => console.log(line));
+    Object.entries(envVars).forEach(([key, value]) => {
+      const maskedValue = value.length > 20 ? value.substring(0, 20) + '...' : value;
+      console.log(`  - ${key} = ${maskedValue}`);
+    });
 
-    let item;
+    let existingItem = null;
     try {
-      item = getBwItem(PROJECT);
-      console.log(`\n✓ Found existing Bitwarden item: "${PROJECT}"`);
-
-      const hasExistingFields = item.fields && item.fields.length > 0;
-      if (hasExistingFields) {
-        console.log(`  Current fields: ${item.fields.map((f: any) => f.name).join(', ')}`);
-      }
-
-      const confirmed = await askConfirmation('\n⚠ This will overwrite existing fields. Continue?');
-      if (!confirmed) {
-        console.log('Operation cancelled.');
-        process.exit(0);
-      }
+      const result = execSync(`bw get item "${PROJECT}"`, { encoding: 'utf-8' });
+      existingItem = JSON.parse(result);
     } catch {
-      console.log(`\n✓ Creating new Bitwarden item: "${PROJECT}"`);
-      item = getBwItem(PROJECT);
+      // Item doesn't exist, which is fine
     }
 
-    console.log('\nUpdating Bitwarden item...');
-    updateBwItem(item, envVars);
-    console.log(`\n✓ Successfully imported ${Object.keys(envVars).length} environment variables to Bitwarden!`);
-    console.log(`\nYou can now use: npm run dev`);
-    console.log('(or any other script that uses run.ts)');
+    if (existingItem) {
+      console.log(`\n⚠ Bitwarden item "${PROJECT}" already exists.`);
+      console.log(`  Overwriting with ${Object.keys(envVars).length} new variables...\n`);
+
+      updateBwItem(PROJECT, envVars);
+      console.log(`✓ Updated Bitwarden item: "${PROJECT}"`);
+    } else {
+      console.log(`\nCreating new Bitwarden item for "${PROJECT}"...\n`);
+      const created = createBwItem(PROJECT, envVars);
+      console.log(`✓ Created Bitwarden item: "${created.name}" (ID: ${created.id})`);
+    }
+
+    console.log(`\n✓ Successfully imported ${Object.keys(envVars).length} environment variables!`);
+    console.log('\nYou can now use:');
+    console.log(`  bun ./node_modules/@tertium/js/app/scripts/bw/run.ts ${PROJECT} "your command"`);
   } catch (error) {
     console.error('\n✗ Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
