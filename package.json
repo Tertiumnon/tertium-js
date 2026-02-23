@@ -8,6 +8,8 @@
     "./entities/*": "./app/entities/*",
     "./scripts/bw": "./app/scripts/bw/index.ts",
     "./scripts/bw/*": "./app/scripts/bw/*",
+    "./scripts/deploy": "./app/scripts/deploy/index.ts",
+    "./scripts/deploy/*": "./app/scripts/deploy/*",
     "./scripts/*": "./app/scripts/*"
   },
   "files": [
