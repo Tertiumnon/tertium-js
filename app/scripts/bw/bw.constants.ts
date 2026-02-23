@@ -1,28 +1,3 @@
-export const PROJECT_SECRETS = {
-  'moj-grad-api': [
-    { env: 'DATABASE_URL', name: 'DATABASE_URL' },
-    { env: 'PORT', name: 'PORT' },
-    { env: 'NODE_ENV', name: 'NODE_ENV' }
-  ],
-  'weather-api': [
-    { env: 'API_URL', name: 'API_URL' },
-    { env: 'API_KEY', name: 'API_KEY' },
-    { env: 'MEMORYDB_ENDPOINT', name: 'MEMORYDB_ENDPOINT' }
-  ],
-  'moj-grad-web': [
-    { env: 'API_URL', name: 'API_URL' },
-    { env: 'PRODUCTION', name: 'PRODUCTION' }
-  ],
-  'moj-grad-app': [
-    { env: 'VITE_API_URL', name: 'VITE_API_URL' }
-  ],
-  'origin-creative-studio.www': [
-    { env: 'API_URL', name: 'API_URL' }
-  ]
-};
-
-export const AVAILABLE_PROJECTS = Object.keys(PROJECT_SECRETS);
-
 export const BW_TEMP_DIR = process.platform === 'win32' ? process.env.TEMP : '/tmp';
 
 export const ERROR_MESSAGES = {

@@ -11,8 +11,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-import { AVAILABLE_PROJECTS, ERROR_MESSAGES } from './bw.constants';
-import { BwUtils } from './bw.utils';
+import { ERROR_MESSAGES } from './bw.constants';
 
 const PROJECT = Bun.argv[2];
 const ENV_FILE = Bun.argv[3] || '.env';
@@ -21,8 +20,6 @@ if (!PROJECT) {
   console.error('Usage: bun import.ts <project-name> [.env-file-path]');
   console.error('Example: bun import.ts moj-grad-api');
   console.error('Example: bun import.ts moj-grad-api .env');
-  console.error('\nAvailable projects:');
-  AVAILABLE_PROJECTS.forEach(p => console.error(`  - ${p}`));
   process.exit(1);
 }
 
@@ -119,8 +116,6 @@ function updateBwItem(projectName: string, envVars: Record<string, string>) {
 
 async function main() {
   try {
-    BwUtils.validateProject(PROJECT);
-
     try {
       execSync('bw --version', { stdio: 'ignore' });
     } catch {
