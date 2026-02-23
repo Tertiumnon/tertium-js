@@ -14,9 +14,9 @@
     "app/"
   ],
   "scripts": {
-    "release:patch": "node app/scripts/release.js patch",
-    "release:minor": "node app/scripts/release.js minor",
-    "release:major": "node app/scripts/release.js major",
+    "release:patch": "node app/scripts/release.js patch && npm publish --access public",
+    "release:minor": "node app/scripts/release.js minor && npm publish --access public",
+    "release:major": "node app/scripts/release.js major && npm publish --access public",
     "test": "echo \"no test specified\" && exit 0",
     "lint": "biome check app",
     "format": "biome format app",

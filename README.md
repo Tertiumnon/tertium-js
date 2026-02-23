@@ -60,6 +60,68 @@ import { Post } from "@tertium/js/entities/post";
 import { User } from "@tertium/js/entities/user";
 ```
 
+### Bitwarden CLI integration (`./scripts/bw/*`)
+
+This package provides TypeScript utilities for integrating Bitwarden CLI into your project workflows. Use these to securely load environment variables from your Bitwarden vault.
+
+**Key modules:**
+
+- `BitwaidenService` — Service for vault access and secret management
+- `BwUtils` — Utility functions for environment file handling
+- `run.ts` — Wrapper script for executing commands with Bitwarden secrets
+
+**Quick start:**
+
+```bash
+# Load env vars from vault and run a command
+bun ./node_modules/@tertium/js/app/scripts/bw/run.ts {project} "your command"
+
+# Example: build with secrets from vault
+bun ./node_modules/@tertium/js/app/scripts/bw/run.ts weather-api "bun run build"
+```
+
+See [app/scripts/bw/README.md](app/scripts/bw/README.md) for detailed documentation.
+
+### Deploy service (`./scripts/deploy/*`)
+
+Centralized deployment service for managing application deployments to remote servers via SSH and PM2. Handles building, copying files, installing dependencies, and restarting processes.
+
+**Quick start:**
+
+Create a `deploy.config.ts` in your project:
+
+```typescript
+import type { DeployConfig } from "@tertium/js/app/scripts/deploy";
+
+export default {
+  remoteHost: "tertium",
+  deployPath: "/var/www/my-app",
+  appName: "my-app",
+  localDist: "./dist",
+  tempPath: "/tmp/my-app-deploy"
+} satisfies DeployConfig;
+```
+
+Add to `package.json`:
+
+```json
+{
+  "scripts": {
+    "deploy": "bun ./node_modules/@tertium/js/app/scripts/deploy/run.ts ./deploy.config.ts",
+    "deploy:skip-build": "bun ./node_modules/@tertium/js/app/scripts/deploy/run.ts ./deploy.config.ts --skip-build"
+  }
+}
+```
+
+Then deploy:
+
+```bash
+npm run deploy        # Build and deploy
+npm run deploy:skip-build  # Skip build, deploy only
+```
+
+See [app/scripts/deploy/README.md](app/scripts/deploy/README.md) for detailed configuration options.
+
 ### Release scripts
 
 This package ships Node.js release helper scripts in `scripts/`. You can invoke them from your project's `package.json` by referencing the script file in `node_modules`:
