@@ -64,7 +64,8 @@ export class DeployService {
         ? `mv ${tempPath}/* ${deployPath}/`
         : `shopt -s dotglob && mv ${tempPath}/* ${deployPath}/`;
 
-      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'rm -rf ${deployPath}/* && ${moveCmd}' && sudo chown -R ${this.remoteUser}:${this.remoteUser} ${deployPath} && rm -rf ${tempPath}`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'rm -rf ${deployPath}/* && ${moveCmd} && chown -R ${this.remoteUser}:${this.remoteUser} ${deployPath}'`;
+      await $`ssh ${sshHost} rm -rf ${tempPath}`;
       this.log("✓ Files copied successfully");
     } catch (error) {
       throw new Error("Failed to copy files to server");
