@@ -4,12 +4,14 @@ import type { DeployConfig, DeployOptions, DeployResult } from "./deploy.types";
 export class DeployService {
   private config: DeployConfig;
   private options: DeployOptions;
+  private remoteUser: string;
 
   constructor(config: DeployConfig, options: DeployOptions = {}) {
     this.config = {
       sshHost: config.sshHost || config.remoteHost,
       ...config,
     };
+    this.remoteUser = config.remoteUser || "deploy";
     this.options = options;
   }
 
@@ -62,7 +64,7 @@ export class DeployService {
         ? `mv ${tempPath}/* ${deployPath}/`
         : `shopt -s dotglob && mv ${tempPath}/* ${deployPath}/`;
 
-      await $`ssh ${sshHost} sudo -u deploy bash -lc 'rm -rf ${deployPath}/* && ${moveCmd}' && sudo chown -R deploy:deploy ${deployPath} && rm -rf ${tempPath}`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'rm -rf ${deployPath}/* && ${moveCmd}' && sudo chown -R ${this.remoteUser}:${this.remoteUser} ${deployPath} && rm -rf ${tempPath}`;
       this.log("✓ Files copied successfully");
     } catch (error) {
       throw new Error("Failed to copy files to server");
@@ -74,7 +76,7 @@ export class DeployService {
     const { sshHost, deployPath } = this.config;
 
     try {
-      await $`ssh ${sshHost} sudo -u deploy bash -lc 'cd ${deployPath} && npm install --production'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'cd ${deployPath} && npm install --production'`;
       this.log("✓ Dependencies updated");
     } catch (error) {
       throw new Error("Failed to update dependencies");
@@ -90,10 +92,10 @@ export class DeployService {
       const portOpt = port ? ` --env PORT=${port}` : "";
       const cmd = `cd ${deployPath} && pm2 restart ${appName} --update-env || pm2 start ${entry} --name ${appName}${portOpt}`;
 
-      await $`ssh ${sshHost} sudo -u deploy bash -lc '${cmd}'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc '${cmd}'`;
       this.log("✓ Process restarted");
 
-      await $`ssh ${sshHost} sudo -u deploy bash -lc 'pm2 save'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'pm2 save'`;
     } catch (error) {
       throw new Error("Failed to restart process");
     }
@@ -104,7 +106,7 @@ export class DeployService {
     const { sshHost, appName } = this.config;
 
     try {
-      await $`ssh ${sshHost} sudo -u deploy bash -lc 'pm2 status | grep ${appName}'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'pm2 status | grep ${appName}'`;
       this.log("✓ Deployment verified");
     } catch {
       console.warn("⚠ Could not verify deployment status");
