@@ -63,8 +63,9 @@ export class DeployService {
       // Use find to copy files for better portability across shells (bash/zsh)
       const moveCmd = `find ${tempPath} -maxdepth 1 -type f -exec mv {} ${deployPath}/ \\; 2>/dev/null; true`;
       const cleanCmd = `find ${deployPath} -maxdepth 1 -type f -delete 2>/dev/null; true`;
+      const chownCmd = `chown -R ${this.remoteUser} ${deployPath} 2>/dev/null || true`;
 
-      await $`ssh ${sshHost} sudo -u ${this.remoteUser} sh -c '${cleanCmd} && ${moveCmd} && chown -R ${this.remoteUser}:${this.remoteUser} ${deployPath}'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} sh -c '${cleanCmd} && ${moveCmd} && ${chownCmd}'`;
       await $`ssh ${sshHost} rm -rf ${tempPath}`;
       this.log("✓ Files copied successfully");
     } catch (error) {
