@@ -5,6 +5,7 @@ export interface DeployConfig {
   localDist: string;
   tempPath: string;
   sshHost?: string;
+  remoteUser?: string;
   envFile?: string;
   buildCommand?: string;
   port?: number;
