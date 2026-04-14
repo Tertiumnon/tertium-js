@@ -19,7 +19,7 @@
  * } satisfies DeployConfig;
  */
 
-import { createDeployService } from "./index";
+import { createDeployService } from "./deploy.service";
 import type { DeployConfig } from "./deploy.types";
 
 const args = Bun.argv.slice(2);
