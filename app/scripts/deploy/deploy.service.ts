@@ -96,10 +96,10 @@ export class DeployService {
       const portOpt = port ? ` --env PORT=${port}` : "";
       const cmd = `cd ${deployPath} && (pm2 restart ${appName} --update-env 2>/dev/null || pm2 start ${entry} --name ${appName}${portOpt} 2>/dev/null || echo "Note: PM2 not available - start process manually")`;
 
-      await $`ssh ${sshHost} sudo -u ${this.remoteUser} sh -c '${cmd}'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -l -c '${cmd}'`;
       this.log("✓ Process restart attempted");
 
-      await $`ssh ${sshHost} sudo -u ${this.remoteUser} sh -c 'pm2 save 2>/dev/null || true'`;
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -l -c 'pm2 save 2>/dev/null || true'`;
     } catch (error) {
       this.log("⚠ PM2 process management skipped - may need manual setup");
     }
