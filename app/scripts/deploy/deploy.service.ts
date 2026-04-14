@@ -64,7 +64,11 @@ export class DeployService {
         ? `mv ${tempPath}/* ${deployPath}/`
         : `shopt -s dotglob && mv ${tempPath}/* ${deployPath}/`;
 
-      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc 'rm -rf ${deployPath}/* && ${moveCmd} && chown -R ${this.remoteUser}:${this.remoteUser} ${deployPath}'`;
+      const cleanCmd = skipDotfiles
+        ? `find ${deployPath} -maxdepth 1 -type f -delete 2>/dev/null; true`
+        : `find ${deployPath} -maxdepth 1 \\( -type f -o -type l \\) -delete 2>/dev/null; true`;
+
+      await $`ssh ${sshHost} sudo -u ${this.remoteUser} bash -lc '${cleanCmd} && ${moveCmd} && chown -R ${this.remoteUser}:${this.remoteUser} ${deployPath}'`;
       await $`ssh ${sshHost} rm -rf ${tempPath}`;
       this.log("✓ Files copied successfully");
     } catch (error) {
