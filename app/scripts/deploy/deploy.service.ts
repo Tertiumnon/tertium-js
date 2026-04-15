@@ -23,9 +23,20 @@ export class DeployService {
     this.log("Building application locally...");
     try {
       const cmd = this.config.buildCommand || "bun run build";
-      // Use login shell (-l) to load PATH from user's shell configuration
-      // which should include bun if installed via curl installer
-      await $`bash -l -c "${cmd}"`;
+
+      // Use Bun.spawn with explicit environment to preserve full PATH
+      const proc = Bun.spawn(["bash", "-l", "-c", cmd], {
+        stdio: ["inherit", "inherit", "inherit"],
+        env: {
+          ...process.env,
+        },
+      });
+
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) {
+        throw new Error(`Build command exited with code ${exitCode}`);
+      }
+
       this.log("✓ Build successful");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
