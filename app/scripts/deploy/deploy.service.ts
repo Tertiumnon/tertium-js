@@ -24,23 +24,27 @@ export class DeployService {
     try {
       const cmd = this.config.buildCommand || "bun run build";
 
-      // Use Bun.spawn with explicit environment to preserve full PATH
-      const proc = Bun.spawn(["bash", "-l", "-c", cmd], {
+      // Parse command: extract program and args
+      // Handle: "bun ./path/to/script.ts", "bun run build", "npm run build", etc.
+      const parts = cmd.trim().split(/\s+/);
+      const program = parts[0];
+      const args = parts.slice(1);
+
+      // Execute using Bun.spawn
+      const proc = Bun.spawn([program, ...args], {
         stdio: ["inherit", "inherit", "inherit"],
-        env: {
-          ...process.env,
-        },
+        env: process.env,
       });
 
       const exitCode = await proc.exited;
       if (exitCode !== 0) {
-        throw new Error(`Build command exited with code ${exitCode}`);
+        throw new Error(`Build exited with code ${exitCode}`);
       }
 
       this.log("✓ Build successful");
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      this.log(`❌ Build error: ${errorMsg}`);
+      this.log(`❌ Build failed: ${errorMsg}`);
       throw new Error(`Build failed: ${errorMsg}`);
     }
   }
