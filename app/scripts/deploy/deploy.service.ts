@@ -23,7 +23,7 @@ export class DeployService {
     this.log("Building application locally...");
     try {
       const cmd = this.config.buildCommand || "bun run build";
-      await $`bash -c "${cmd}"`;
+      await $`bash -l -c "${cmd}"`;
       this.log("✓ Build successful");
     } catch (error) {
       throw new Error("Build failed");
@@ -78,8 +78,7 @@ export class DeployService {
     const { sshHost, deployPath } = this.config;
 
     try {
-      // Try bun first (faster), then fall back to npm with PATH
-      const cmd = `cd ${deployPath} && (bun install --production 2>/dev/null || npm install --production 2>/dev/null || echo "Note: dependency installation skipped - check manual setup if needed")`;
+      const cmd = `cd ${deployPath} && bun install --production 2>/dev/null || echo "Note: dependency installation skipped - check manual setup if needed"`;
       await $`ssh ${sshHost} sudo -u ${this.remoteUser} sh -c '${cmd}'`;
       this.log("✓ Dependencies updated");
     } catch (error) {
