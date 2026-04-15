@@ -23,11 +23,14 @@ export class DeployService {
     this.log("Building application locally...");
     try {
       const cmd = this.config.buildCommand || "bun run build";
-      const fullCmd = `export PATH="$HOME/.bun/bin:/usr/local/bin:$PATH" && ${cmd}`;
-      await $`bash -l -c "${fullCmd}"`;
+      // Use login shell (-l) to load PATH from user's shell configuration
+      // which should include bun if installed via curl installer
+      await $`bash -l -c "${cmd}"`;
       this.log("✓ Build successful");
     } catch (error) {
-      throw new Error("Build failed");
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.log(`❌ Build error: ${errorMsg}`);
+      throw new Error(`Build failed: ${errorMsg}`);
     }
   }
 
