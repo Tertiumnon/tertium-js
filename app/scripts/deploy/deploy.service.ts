@@ -23,7 +23,8 @@ export class DeployService {
     this.log("Building application locally...");
     try {
       const cmd = this.config.buildCommand || "bun run build";
-      await $`bash -l -c "${cmd}"`;
+      const fullCmd = `export PATH="$HOME/.bun/bin:/usr/local/bin:$PATH" && ${cmd}`;
+      await $`bash -l -c "${fullCmd}"`;
       this.log("✓ Build successful");
     } catch (error) {
       throw new Error("Build failed");
