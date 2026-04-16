@@ -6,8 +6,6 @@
   "exports": {
     "./core/*": "./app/core/*",
     "./entities/*": "./app/entities/*",
-    "./scripts/bw/*": "./app/scripts/bw/*",
-    "./scripts/deploy/*": "./app/scripts/deploy/*",
     "./scripts/*": "./app/scripts/*"
   },
   "files": [
