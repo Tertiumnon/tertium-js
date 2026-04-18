@@ -60,46 +60,29 @@ import { Post } from "@tertium/js/entities/post";
 import { User } from "@tertium/js/entities/user";
 ```
 
-### Bitwarden CLI integration (`./scripts/bw/*`)
+### Deploy script (`./scripts/deploy/*`)
 
-This package provides TypeScript utilities for integrating Bitwarden CLI into your project workflows. Use these to securely load environment variables from your Bitwarden vault.
+Automated deployment tool for Node.js/Bun projects using SSH, SCP, and PM2. Loads configuration from `.env` file, copies built files to remote server, and manages PM2 process.
 
-**Key modules:**
-
-- `BitwaidenService` — Service for vault access and secret management
-- `BwUtils` — Utility functions for environment file handling
-- `run.ts` — Wrapper script for executing commands with Bitwarden secrets
-
-**Quick start:**
-
-```bash
-# Load env vars from vault and run a command
-bun ./node_modules/@tertium/js/app/scripts/bw/run.ts {project} "your command"
-
-# Example: build with secrets from vault
-bun ./node_modules/@tertium/js/app/scripts/bw/run.ts weather-api "bun run build"
-```
-
-See [app/scripts/bw/README.md](app/scripts/bw/README.md) for detailed documentation.
-
-### Deploy service (`./scripts/deploy/*`)
-
-Centralized deployment service for managing application deployments to remote servers via SSH and PM2. Handles building, copying files, installing dependencies, and restarting processes.
+**Features:**
+- Automatic `.env` loading and validation
+- SCP file transfer of `dist/` directory
+- Remote dependency installation with Bun
+- PM2 service management (restart/start)
+- Static site support (skip PM2 for static HTML/JS apps)
+- Cross-platform (Windows, macOS, Linux)
 
 **Quick start:**
 
-Create a `deploy.config.ts` in your project:
+Create a `.env` file in your project:
 
-```typescript
-import type { DeployConfig } from "@tertium/js/app/scripts/deploy";
-
-export default {
-  remoteHost: "tertium",
-  deployPath: "/var/www/my-app",
-  appName: "my-app",
-  localDist: "./dist",
-  tempPath: "/tmp/my-app-deploy"
-} satisfies DeployConfig;
+```env
+DEPLOY_USER=your-username
+DEPLOY_HOST=your-server
+DEPLOY_PATH=/var/www/my-app
+APP_NAME=my-app
+# Optional: Set to true for static sites (skips bun install and PM2)
+STATIC_SITE=false
 ```
 
 Add to `package.json`:
@@ -107,8 +90,7 @@ Add to `package.json`:
 ```json
 {
   "scripts": {
-    "deploy": "bun ./node_modules/@tertium/js/app/scripts/deploy/run.ts ./deploy.config.ts",
-    "deploy:skip-build": "bun ./node_modules/@tertium/js/app/scripts/deploy/run.ts ./deploy.config.ts --skip-build"
+    "deploy": "bun run build && bun ./node_modules/@tertium/js/scripts/deploy/deploy.ts"
   }
 }
 ```
@@ -117,10 +99,29 @@ Then deploy:
 
 ```bash
 npm run deploy        # Build and deploy
-npm run deploy:skip-build  # Skip build, deploy only
 ```
 
-See [app/scripts/deploy/README.md](app/scripts/deploy/README.md) for detailed configuration options.
+**Usage as library:**
+
+```typescript
+import { deploy } from '@tertium/js/scripts/deploy';
+
+// Deploy with default config (reads .env from cwd)
+deploy();
+
+// Or with custom config
+deploy({
+  projectDir: '/path/to/project',
+  env: {
+    DEPLOY_USER: 'your-username',
+    DEPLOY_HOST: 'your-server',
+    DEPLOY_PATH: '/var/www/my-app',
+    APP_NAME: 'my-app'
+  }
+});
+```
+
+See [scripts/deploy/README.md](scripts/deploy/README.md) for detailed documentation.
 
 ### Release scripts
 
