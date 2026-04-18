@@ -54,6 +54,8 @@ export function deploy(config: DeployConfig = {}): void {
 
   console.log(`\nDeploying to ${env.DEPLOY_HOST}:${env.DEPLOY_PATH}\n`);
 
+  const isStaticSite = env.STATIC_SITE === "true";
+
   try {
     // Copy files via SCP
     const scpCmd = `scp -r dist/ ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/`;
@@ -64,14 +66,18 @@ export function deploy(config: DeployConfig = {}): void {
       shell: true,
     } as any);
 
-    // Restart service via SSH with login shell (or start if first deployment)
-    const sshCmd = `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c 'cd ${env.DEPLOY_PATH} && bun install --production && (pm2 restart ${env.APP_NAME} --update-env || pm2 start dist/index.js --name ${env.APP_NAME} --update-env)'"`;
-    console.log(`→ ${sshCmd}`);
-    execSync(sshCmd, {
-      stdio: "inherit",
-      cwd: projectDir,
-      shell: true,
-    } as any);
+    if (!isStaticSite) {
+      // Restart service via SSH with login shell (or start if first deployment)
+      const sshCmd = `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c 'cd ${env.DEPLOY_PATH} && bun install --production && (pm2 restart ${env.APP_NAME} --update-env || pm2 start dist/index.js --name ${env.APP_NAME} --update-env)'"`;
+      console.log(`→ ${sshCmd}`);
+      execSync(sshCmd, {
+        stdio: "inherit",
+        cwd: projectDir,
+        shell: true,
+      } as any);
+    } else {
+      console.log("→ Static site deployment (skipping bun install and PM2)");
+    }
 
     console.log("\n✓ Deployment complete!\n");
   } catch (error: any) {
@@ -80,7 +86,7 @@ export function deploy(config: DeployConfig = {}): void {
   }
 }
 
-// CLI entry point - only execute if called directly
-if (import.meta.url.endsWith(process.argv[1])) {
+// CLI entry point - execute if called directly as a script
+if (process.argv[1]?.includes("deploy.ts")) {
   deploy();
 }
