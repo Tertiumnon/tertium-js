@@ -68,7 +68,7 @@ export function deploy(config: DeployConfig = {}): void {
 
     if (!isStaticSite) {
       // Restart service via SSH with login shell (or start if first deployment)
-      const sshCmd = `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c 'cd ${env.DEPLOY_PATH} && bun install --production && (pm2 restart ${env.APP_NAME} --update-env || pm2 start dist/index.js --name ${env.APP_NAME} --update-env)'"`;
+      const sshCmd = `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c 'cd ${env.DEPLOY_PATH} && bun install --production && if [ -f dist/src/db/schema.prisma ]; then bunx prisma generate --schema=dist/src/db/schema.prisma; fi && (pm2 restart ${env.APP_NAME} --update-env || pm2 start dist/index.js --name ${env.APP_NAME} --interpreter bun --update-env)'"`;
       console.log(`→ ${sshCmd}`);
       execSync(sshCmd, {
         stdio: "inherit",
