@@ -1,25 +1,27 @@
 {
   "name": "@tertium/js",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Shared JS configs and types.",
   "type": "module",
   "exports": {
-    "./core/*": "./app/core/*",
-    "./entities/*": "./app/entities/*",
-    "./scripts/*": "./app/scripts/*"
+    "./core/*": "./core/*",
+    "./entities/*": "./entities/*",
+    "./scripts/*": "./scripts/*"
   },
   "files": [
-    "app/"
+    "scripts/",
+    "core/",
+    "entities/"
   ],
   "scripts": {
-    "release:patch": "node app/scripts/release.js patch",
-    "release:minor": "node app/scripts/release.js minor",
-    "release:major": "node app/scripts/release.js major",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
     "test": "echo \"no test specified\" && exit 0",
-    "lint": "biome check app",
-    "format": "biome format app",
-    "biome-check": "biome check app",
-    "lint:fix": "biome check --write app"
+    "lint": "biome check scripts core entities",
+    "format": "biome format scripts core entities",
+    "biome-check": "biome check scripts core entities",
+    "lint:fix": "biome check --write scripts core entities"
   },
   "author": "Vitalii Balabanov",
   "license": "ISC",
