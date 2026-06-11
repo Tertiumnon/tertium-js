@@ -57,8 +57,10 @@ export function deploy(config: DeployConfig = {}): void {
   const isStaticSite = env.STATIC_SITE === "true";
   const distDir = env.DIST_DIR || "dist/";
 
-  // Ensure distDir ends with / for proper SCP behavior
-  const distPath = distDir.endsWith("/") ? distDir : `${distDir}/`;
+  // For SCP, we need to copy contents (/*) not the directory itself
+  // Remove trailing slash if present, then add /* to copy contents
+  const distBase = distDir.endsWith("/") ? distDir.slice(0, -1) : distDir;
+  const distPath = `${distBase}/*`;
 
   try {
     // Copy files via SCP
