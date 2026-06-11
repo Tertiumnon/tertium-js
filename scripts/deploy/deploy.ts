@@ -35,7 +35,7 @@ export function loadEnv(projectDir: string): Record<string, string> {
 
 // Validate environment variables
 export function validate(env: Record<string, string>) {
-  const required = ["DEPLOY_USER", "DEPLOY_HOST", "DEPLOY_PATH", "APP_NAME"];
+  const required = ["DEPLOY_USER", "DEPLOY_HOST", "DEPLOY_PATH"];
   const missing = required.filter((key) => !env[key]);
 
   if (missing.length > 0) {
@@ -55,10 +55,14 @@ export function deploy(config: DeployConfig = {}): void {
   console.log(`\nDeploying to ${env.DEPLOY_HOST}:${env.DEPLOY_PATH}\n`);
 
   const isStaticSite = env.STATIC_SITE === "true";
+  const distDir = env.DIST_DIR || "dist/";
+
+  // Ensure distDir ends with / for proper SCP behavior
+  const distPath = distDir.endsWith("/") ? distDir : `${distDir}/`;
 
   try {
     // Copy files via SCP
-    const scpCmd = `scp -r dist/ ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/`;
+    const scpCmd = `scp -r ${distPath} ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/`;
     console.log(`→ ${scpCmd}`);
     execSync(scpCmd, {
       stdio: "inherit",
@@ -67,6 +71,12 @@ export function deploy(config: DeployConfig = {}): void {
     } as any);
 
     if (!isStaticSite) {
+      // Validate APP_NAME is present for non-static sites
+      if (!env.APP_NAME) {
+        console.error("Error: APP_NAME is required for non-static site deployments");
+        process.exit(1);
+      }
+
       // Restart service via SSH with login shell (or start if first deployment)
       const sshCmd = `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c 'cd ${env.DEPLOY_PATH} && bun install --production && if [ -f dist/src/db/schema.prisma ]; then bunx prisma generate --schema=dist/src/db/schema.prisma; fi && (pm2 restart ${env.APP_NAME} --update-env || pm2 start dist/index.js --name ${env.APP_NAME} --interpreter bun --update-env)'"`;
       console.log(`→ ${sshCmd}`);

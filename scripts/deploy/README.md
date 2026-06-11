@@ -59,10 +59,25 @@ npm run deploy
 Create a `.env` file in your project root with the following variables:
 
 ```env
-DEPLOY_USER=vitba              # SSH username
-DEPLOY_HOST=drh-mini           # SSH hostname or IP
-DEPLOY_PATH=/var/www/app-name  # Remote deployment directory
-APP_NAME=app-name              # PM2 app name
+DEPLOY_USER=vitba                        # SSH username
+DEPLOY_HOST=drh-mini                     # SSH hostname or IP
+DEPLOY_PATH=/var/www/app-name            # Remote deployment directory
+STATIC_SITE=true                         # Set to "true" for static sites (skips PM2)
+DIST_DIR=dist/                           # Local build directory to deploy (default: dist/)
+APP_NAME=app-name                        # PM2 app name (required for non-static sites)
+```
+
+### Static Site Deployment (Angular, React, Vue, etc.)
+
+For static sites, set `STATIC_SITE=true` and optionally specify `DIST_DIR` to point to your build output:
+
+```env
+DEPLOY_USER=myuser
+DEPLOY_HOST=myserver
+DEPLOY_PATH=/var/www/my-site
+STATIC_SITE=true
+DIST_DIR=dist/my-app/browser/          # Angular example
+# APP_NAME not needed for static sites
 ```
 
 ## How It Works
