@@ -13,31 +13,57 @@ function run(command: string): void {
   }
 }
 
+function getCurrentBranch(): string {
+  try {
+    return execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf-8",
+    }).trim();
+  } catch {
+    console.error("Failed to get current branch");
+    exit(1);
+  }
+}
+
 function release(type: ReleaseType): void {
   switch (type) {
     case "patch":
       // Patch release: from main branch
+      console.log("\n📋 Starting patch release from main branch...\n");
       run("git checkout main");
+      run("git pull");
       run(`npm version ${type}`);
       run("git push");
       run("git push --tags");
       run("git checkout develop");
+      run("git pull");
       run("git rebase main");
       run("git push");
       run("git checkout main");
+      console.log("\n✅ Patch release complete!\n");
       break;
 
     case "minor":
     case "major":
       // Minor and major releases: from develop branch
-      run("git checkout develop");
+      console.log(`\n📋 Starting ${type} release from develop branch...\n`);
+      const currentBranch = getCurrentBranch();
+      if (currentBranch !== "develop") {
+        console.error(
+          `❌ Error: Must be on 'develop' branch, but currently on '${currentBranch}'`
+        );
+        exit(1);
+      }
+      run("git pull");
       run(`npm version ${type}`);
       run("git push");
       run("git push --tags");
       run("git checkout main");
+      run("git pull");
       run("git merge develop");
       run("git push");
       run("git checkout develop");
+      run("git pull origin main");
+      console.log(`\n✅ ${type} release complete!\n`);
       break;
 
     default:

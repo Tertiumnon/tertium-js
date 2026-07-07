@@ -4,11 +4,15 @@ Automates the release process for npm packages with support for patch, minor, an
 
 ## What It Does
 
-Handles the complete release workflow:
-- Updates version in `package.json`
-- Creates git tags
-- Pushes to appropriate branch (main for patch, develop for minor/major)
-- Synchronizes branches after release
+Handles the complete release workflow with proper state verification:
+- **Verifies branch**: Ensures you're on the correct branch before proceeding
+- **Syncs with remote**: Pulls latest changes before starting (prevents conflicts)
+- **Updates version**: Bumps version in `package.json` using `npm version`
+- **Creates tags**: Git tags for version tracking
+- **Pushes commits**: Pushes to correct branch with tags
+- **Merges properly**: For major/minor, merges develop → main with proper sync
+- **Syncs branches**: Ensures both main and develop are up-to-date after release
+- **Error handling**: Exits gracefully if any step fails
 
 ## Usage
 
