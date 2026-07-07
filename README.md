@@ -7,8 +7,11 @@ A reusable TypeScript library providing shared core utilities, entity models, an
 - Installation
 - Usage
   - Importing modules
-  - Release scripts
-  - Cleaning build folders
+  - Scripts
+    - Clean
+    - Release
+    - Improve Start Scripts
+    - Deploy
 - Contributing
 
 ## Installation
@@ -59,6 +62,64 @@ Example:
 import { Post } from "@tertium/js/entities/post";
 import { User } from "@tertium/js/entities/user";
 ```
+
+## Scripts
+
+Utility scripts for common development tasks. All scripts are TypeScript-based and located in `scripts/[name]/`.
+
+Add scripts to your project's `package.json`:
+
+```json
+{
+  "scripts": {
+    "clean": "bun node_modules/@tertium/js/scripts/clean/clean.ts",
+    "improve:scripts": "bun node_modules/@tertium/js/scripts/improve-start-scripts/improve-start-scripts.ts",
+    "release:patch": "bun node_modules/@tertium/js/scripts/release/release.ts patch",
+    "release:minor": "bun node_modules/@tertium/js/scripts/release/release.ts minor",
+    "release:major": "bun node_modules/@tertium/js/scripts/release/release.ts major",
+    "deploy": "bun run build && bun node_modules/@tertium/js/scripts/deploy/deploy.ts"
+  }
+}
+```
+
+### Clean
+
+Removes build and distribution directories cross-platform.
+
+```bash
+bun run clean                    # Remove ./dist
+bun run clean -- dist build     # Remove multiple directories
+```
+
+**See:** [scripts/clean/clean.md](scripts/clean/clean.md)
+
+### Release
+
+Automates version bumps and git workflow for npm packages.
+
+- **Patch**: Release from main branch (hotfixes)
+- **Minor/Major**: Release from develop branch (features/breaking changes)
+
+```bash
+bun run release:patch
+bun run release:minor
+bun run release:major
+```
+
+**See:** [scripts/release/release.md](scripts/release/release.md)
+
+### Improve Start Scripts
+
+Auto-detects project framework and ensures `start` and `dev` npm scripts are properly configured.
+
+Supports: Vite, Angular, React, SolidJS, Create React App.
+
+```bash
+bun run improve:scripts          # Check current project
+bun run improve:scripts -- --update  # Update scripts
+```
+
+**See:** [scripts/improve-start-scripts/improve-start-scripts.md](scripts/improve-start-scripts/improve-start-scripts.md)
 
 ### Deploy script (`./scripts/deploy/*`)
 
@@ -121,69 +182,7 @@ deploy({
 });
 ```
 
-See [scripts/deploy/README.md](scripts/deploy/README.md) for detailed documentation.
-
-### Release scripts
-
-This package ships Node.js release helper scripts in `scripts/`. You can invoke them from your project's `package.json` by referencing the script file in `node_modules`:
-
-```json
-{
-  "scripts": {
-    "release:patch": "node node_modules/@tertium/js/scripts/release.js patch",
-    "release:minor": "node node_modules/@tertium/js/scripts/release.js minor",
-    "release:major": "node node_modules/@tertium/js/scripts/release.js major"
-  }
-}
-```
-
-Briefly:
-
-- Patch release: bump from `main`, rebase `develop`.
-- Minor/Major releases: bump from `develop`, merge to `main`.
-
-(See the script comments in `scripts/release.js` for full workflows.)
-
-### Cleaning build folders
-
-This package provides a small cross-platform cleaner at `scripts/clean.js` that removes folders such as `dist`.
-
-Notes:
-
-- The script resolves paths from the current working directory and will skip targets that don't exist.
-- It prefers `fs.rmSync` (Node 14.14+) and falls back to a small recursive remover for older Node versions.
-- The script logs removed and skipped paths and sets a non-zero exit code on failure.
-
-#### Using this script in your own repository
-
-If you consume `@tertium/js` from another project, reference the script directly in your `package.json` scripts:
-
-```json
-{
-  "scripts": {
-    "clean": "node node_modules/@tertium/js/scripts/clean.js",
-    "clean:dist": "node node_modules/@tertium/js/scripts/clean.js dist"
-  }
-}
-```
-
-Then run from your project:
-
-```powershell
-# Delete default (./dist)
-npm run clean
-
-# Pass multiple targets
-npm run clean -- dist build .cache
-
-# Run the dist shortcut
-npm run clean:dist
-```
-
-Notes for consumers:
-
-- Ensure `@tertium/js` is installed (as a dependency or devDependency) so the `node_modules` path exists.
-- If you'd prefer a CLI-style experience (invokable via `npx`/`pnpm dlx`), we can add a `bin` entry to this package — tell me if you want that and I will add it and update README usage.
+**See:** [scripts/deploy/deploy.md](scripts/deploy/deploy.md)
 
 ## Contributing
 

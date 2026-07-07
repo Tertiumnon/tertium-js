@@ -1,13 +1,9 @@
-#!/usr/bin/env node
-
 import { execSync } from "node:child_process";
 import { exit } from "node:process";
 
-/**
- * Execute a command and print its output
- * @param {string} command - Command to execute
- */
-function run(command) {
+type ReleaseType = "patch" | "minor" | "major";
+
+function run(command: string): void {
   try {
     console.log(`> ${command}`);
     execSync(command, { stdio: "inherit" });
@@ -17,11 +13,7 @@ function run(command) {
   }
 }
 
-/**
- * Release a new version
- * @param {'patch'|'minor'|'major'} type - Release type
- */
-function release(type) {
+function release(type: ReleaseType): void {
   switch (type) {
     case "patch":
       // Patch release: from main branch
@@ -61,4 +53,10 @@ if (!releaseType) {
   exit(1);
 }
 
-release(releaseType);
+if (!["patch", "minor", "major"].includes(releaseType)) {
+  console.error(`Invalid release type: ${releaseType}`);
+  console.error("Valid options: patch, minor, major");
+  exit(1);
+}
+
+release(releaseType as ReleaseType);

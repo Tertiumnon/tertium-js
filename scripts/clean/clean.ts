@@ -1,16 +1,7 @@
-#!/usr/bin/env node
-// Simple cross-platform cleaning script.
-// Usage:
-//   node scripts/clean.js            # removes ./dist
-//   node scripts/clean.js dist build # removes ./dist and ./build
-
 import fs from "node:fs";
 import path from "node:path";
 
-const args = process.argv.slice(2);
-const targets = args.length ? args : ["dist"];
-
-function removeTarget(t) {
+function removeTarget(t: string): void {
   const p = path.resolve(process.cwd(), t);
   if (!fs.existsSync(p)) {
     console.log(`Not found (skipping): ${p}`);
@@ -18,12 +9,12 @@ function removeTarget(t) {
   }
 
   try {
-    // Prefer fs.rmSync with recursive option when available (Node 14.14+)
+    // Prefer fs.rmSync with recursive option (Node 14.14+)
     if (typeof fs.rmSync === "function") {
       fs.rmSync(p, { recursive: true, force: true });
     } else {
-      // Fallback for older Node versions: a small recursive remover
-      const rimrafLike = (dir) => {
+      // Fallback for older Node versions
+      const rimrafLike = (dir: string) => {
         if (!fs.existsSync(dir)) return;
         for (const entry of fs.readdirSync(dir)) {
           const entryPath = path.join(dir, entry);
@@ -39,9 +30,14 @@ function removeTarget(t) {
     }
     console.log(`Deleted: ${p}`);
   } catch (err) {
-    console.error(`Failed to remove ${p}: ${err?.message ? err.message : err}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Failed to remove ${p}: ${message}`);
     process.exitCode = 1;
   }
 }
+
+// Get targets from command line arguments or default to ["dist"]
+const args = process.argv.slice(2);
+const targets = args.length ? args : ["dist"];
 
 targets.forEach(removeTarget);
