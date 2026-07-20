@@ -1,5 +1,7 @@
 # @tertium/js
 
+> **⚠️ IN DEVELOPMENT** — APIs, scripts, and configuration formats in this package are still changing and may break between versions without notice. Pin an exact version rather than a range, and review the changelog/diff before upgrading.
+
 A reusable TypeScript library providing shared core utilities, entity models, and release automation scripts for JavaScript projects. Includes abstractions for APIs, authentication, filtering, logging, repositories, and domain entities (users, posts, comments).
 
 ## Table of contents
@@ -77,7 +79,7 @@ Add scripts to your project's `package.json`:
     "release:patch": "bun node_modules/@tertium/js/scripts/release/release.ts patch",
     "release:minor": "bun node_modules/@tertium/js/scripts/release/release.ts minor",
     "release:major": "bun node_modules/@tertium/js/scripts/release/release.ts major",
-    "deploy": "bun run build && bun node_modules/@tertium/js/scripts/deploy/deploy.ts"
+    "deploy": "bun node_modules/@tertium/js/scripts/deploy/deploy.ts"
   }
 }
 ```
@@ -126,11 +128,13 @@ bun run improve:scripts -- --update  # Update scripts
 Automated deployment tool for Node.js/Bun projects using SSH, SCP, and PM2. Loads configuration from `.env` file, copies built files to remote server, and manages PM2 process.
 
 **Features:**
-- Automatic `.env` loading and validation
-- SCP file transfer of `dist/` directory
+- Automatic `.env` loading and validation (rejects an unsafe `DEPLOY_PATH`)
+- Builds locally before deploying (`BUILD_COMMAND`, skippable with `--skip-build`)
+- Cleans the remote `DEPLOY_PATH` before every deploy, preserving `.env`
+- SCP transfer of `package.json`, a lockfile, and the `dist/` directory (preserved as a folder)
 - Remote dependency installation with Bun
-- PM2 service management (restart/start)
-- Static site support (skip PM2 for static HTML/JS apps)
+- PM2 service management — always deletes and recreates the process with `--interpreter bun`, so it can never end up running under Node
+- Static site support (skip `bun install`/PM2 for static HTML/JS apps)
 - Cross-platform (Windows, macOS, Linux)
 
 **Quick start:**
@@ -151,7 +155,7 @@ Add to `package.json`:
 ```json
 {
   "scripts": {
-    "deploy": "bun run build && bun ./node_modules/@tertium/js/scripts/deploy/deploy.ts"
+    "deploy": "bun ./node_modules/@tertium/js/scripts/deploy/deploy.ts"
   }
 }
 ```
@@ -159,7 +163,8 @@ Add to `package.json`:
 Then deploy:
 
 ```bash
-npm run deploy        # Build and deploy
+npm run deploy               # Builds and deploys
+npm run deploy -- --skip-build   # Deploys the existing dist/ without rebuilding
 ```
 
 **Usage as library:**
