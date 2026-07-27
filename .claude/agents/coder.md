@@ -1,7 +1,7 @@
 ---
 name: coder
 description: Backend code generation for Bun/TypeScript with metadata-driven entity generation
-model: claude-opus-4-8
+model: haiku
 reasoning_effort: medium
 tools:
   - Agent
