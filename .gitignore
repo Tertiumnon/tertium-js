@@ -197,3 +197,4 @@ dist
 !/.gitignore
 !/.github
 !/.vscode
+!/.claude

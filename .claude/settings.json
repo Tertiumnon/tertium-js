@@ -1,0 +1,22 @@
+{
+  "agents": {
+    "default": "coder"
+  },
+  "project": {
+    "name": "@tertium/js",
+    "description": "Shared JS configs and types library",
+    "type": "library",
+    "runtime": "bun"
+  },
+  "codeStyle": {
+    "functions": "arrow-functions-only",
+    "typeDefinitions": "separate-types-files",
+    "typeScript": "strict-mode"
+  },
+  "tools": {
+    "typescript": "bun run lint:check:ts",
+    "linting": "bun run lint",
+    "formatting": "bun run lint:fix",
+    "testing": "bun run test"
+  }
+}
