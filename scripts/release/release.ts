@@ -43,13 +43,13 @@ function release(type: ReleaseType): void {
       break;
 
     case "minor":
-    case "major":
+    case "major": {
       // Minor and major releases: from develop branch
       console.log(`\n📋 Starting ${type} release from develop branch...\n`);
       const currentBranch = getCurrentBranch();
       if (currentBranch !== "develop") {
         console.error(
-          `❌ Error: Must be on 'develop' branch, but currently on '${currentBranch}'`
+          `❌ Error: Must be on 'develop' branch, but currently on '${currentBranch}'`,
         );
         exit(1);
       }
@@ -65,6 +65,7 @@ function release(type: ReleaseType): void {
       run("git pull origin main");
       console.log(`\n✅ ${type} release complete!\n`);
       break;
+    }
 
     default:
       console.error("Invalid release type. Use: patch, minor, or major");

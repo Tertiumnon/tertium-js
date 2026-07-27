@@ -8,7 +8,7 @@
     "enabled": true
   },
   "files": {
-    "includes": ["app/**", "src/**", "test/**"],
+    "includes": ["scripts/**", "core/**", "entities/**"],
     "ignoreUnknown": true
   }
 }

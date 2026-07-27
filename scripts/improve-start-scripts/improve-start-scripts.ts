@@ -1,37 +1,26 @@
-import { readFileSync, writeFileSync } from "fs";
-import path from "path";
-
-interface PackageJson {
-  scripts?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  dependencies?: Record<string, string>;
-  [key: string]: any;
-}
-
-type FrameworkType =
-  | "vite-solidjs"
-  | "vite-react"
-  | "vite-vue"
-  | "vite-generic"
-  | "angular"
-  | "react-scripts"
-  | "unknown";
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import type {
+  FrameworkType,
+  PackageJson,
+  ScriptCommand,
+} from "./improve-start-scripts.types";
 
 const FRAMEWORK_DETECTION: Record<
   string,
   { patterns: string[]; type: FrameworkType }
 > = {
-  "solid-js": { patterns: ["solid-js", "vite-plugin-solid"], type: "vite-solidjs" },
+  "solid-js": {
+    patterns: ["solid-js", "vite-plugin-solid"],
+    type: "vite-solidjs",
+  },
   react: { patterns: ["react", "react-dom"], type: "vite-react" },
   vue: { patterns: ["vue"], type: "vite-vue" },
   angular: { patterns: ["@angular/core"], type: "angular" },
   "react-scripts": { patterns: ["react-scripts"], type: "react-scripts" },
 };
 
-const SCRIPT_COMMANDS: Record<
-  FrameworkType,
-  { dev: string; start: string; description: string }
-> = {
+const SCRIPT_COMMANDS: Record<FrameworkType, ScriptCommand> = {
   "vite-solidjs": {
     dev: "vite",
     start: "vite preview",
@@ -69,7 +58,7 @@ const SCRIPT_COMMANDS: Record<
   },
 };
 
-function detectFramework(pkg: PackageJson): FrameworkType {
+const detectFramework = (pkg: PackageJson): FrameworkType => {
   const allDeps = {
     ...pkg.dependencies,
     ...pkg.devDependencies,
@@ -93,12 +82,12 @@ function detectFramework(pkg: PackageJson): FrameworkType {
   if (hasVite) return "vite-generic";
 
   return "unknown";
-}
+};
 
-function improveStartScripts(
+const improveStartScripts = (
   projectPath: string,
-  options: { update?: boolean; force?: boolean } = {}
-): void {
+  options: { update?: boolean; force?: boolean } = {},
+): void => {
   const packageJsonPath = path.join(projectPath, "package.json");
 
   try {
@@ -119,7 +108,7 @@ function improveStartScripts(
     console.log(`\n📦 Project: ${projectPath}`);
     console.log(`🔍 Framework: ${commands.description}`);
     console.log(
-      `✓ Scripts: ${hasStart ? "start" : "⚠️  missing start"} | ${hasDev ? "dev" : "⚠️  missing dev"}`
+      `✓ Scripts: ${hasStart ? "start" : "⚠️  missing start"} | ${hasDev ? "dev" : "⚠️  missing dev"}`,
     );
 
     if (!needsUpdate) {
@@ -129,16 +118,16 @@ function improveStartScripts(
 
     if (options.update || options.force) {
       if (!hasStart) {
-        pkg.scripts.start = commands.start;
+        pkg.scripts["start"] = commands.start;
         console.log(`✏️  Added "start" → "${commands.start}"`);
       }
 
       if (!hasDev) {
-        pkg.scripts.dev = commands.dev;
+        pkg.scripts["dev"] = commands.dev;
         console.log(`✏️  Added "dev" → "${commands.dev}"`);
       }
 
-      writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
+      writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
       console.log("✅ package.json updated");
     } else {
       console.log("\n💡 To update scripts, run with --update flag");
@@ -156,7 +145,7 @@ function improveStartScripts(
     }
     process.exit(1);
   }
-}
+};
 
 // CLI handling
 const projectPath = process.argv[2] || process.cwd();

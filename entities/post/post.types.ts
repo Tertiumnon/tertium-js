@@ -1,4 +1,4 @@
-import type { Timestamped } from "../../core/entity/entity.types";
+import type { Timestamped } from "../../core/time/time.types";
 
 export interface PostProps extends Timestamped {
   id: string;

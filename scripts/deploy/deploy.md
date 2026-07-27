@@ -45,22 +45,74 @@ deploy({
     APP_NAME: 'app-name'
   }
 });
+
+// Deploy using a specific env file (.env.dev, .env.prod, etc.)
+deploy({
+  projectDir: '/path/to/project',
+  envFile: '.env.prod'
+});
 ```
 
-### As CLI Command (via @tertium/hlpr)
+### As CLI Command
 
 ```bash
-# Deploy with build (build then deploy)
-npm run build
-hlpr deploy
+# Deploy with default .env config
+bun scripts/deploy/deploy.ts
 
-# Or in one command
-npm run deploy
+# Deploy using a specific environment config file
+bun scripts/deploy/deploy.ts --env-file=.env.dev
+bun scripts/deploy/deploy.ts --env-file=.env.prod
+
+# Skip build (if already built)
+bun scripts/deploy/deploy.ts --skip-build
+```
+
+Or add npm/bun scripts to `package.json` for convenience:
+
+```json
+{
+  "scripts": {
+    "deploy": "bun scripts/deploy/deploy.ts",
+    "deploy:dev": "bun scripts/deploy/deploy.ts --env-file=.env.dev",
+    "deploy:prod": "bun scripts/deploy/deploy.ts --env-file=.env.prod"
+  }
+}
+```
+
+Then run:
+```bash
+bun run deploy
+bun run deploy:dev
+bun run deploy:prod
 ```
 
 ## Configuration
 
-Create a `.env` file in your project root with the following variables:
+### Multiple Environment Configs
+
+Create `.env` files for different deployment environments. The deploy tool supports multiple config files:
+
+- `.env` (default)
+- `.env.dev` (development deployment)
+- `.env.prod` (production deployment)
+- `.env.staging` (staging deployment)
+- Any custom `.env.*` file
+
+Specify which config file to use via the `envFile` option:
+
+```typescript
+// Programmatically
+deploy({ envFile: '.env.dev' });
+
+// Via CLI
+hlpr deploy --env-file=.env.prod
+```
+
+If a specified env file is not found, the tool will list available configs and suggest which to use.
+
+### Configuration Variables
+
+Create a `.env` (or `.env.dev`, `.env.prod`, etc.) file in your project root with the following variables:
 
 ```env
 DEPLOY_USER=vitba                        # SSH username (must own DEPLOY_PATH, or be able to mkdir it)
@@ -131,23 +183,40 @@ DIST_DIR=dist/my-app/browser/          # Angular example
 - ZSH shell available on remote server
 - `.env` file with required variables
 
-## Example Deployment
+## Example Deployments
 
+### Default deployment (reads .env)
 ```bash
-hlpr deploy
+bun scripts/deploy/deploy.ts
+```
+
+### Development deployment (reads .env.dev)
+```bash
+bun scripts/deploy/deploy.ts --env-file=.env.dev
 
 # Output:
-# Deploying to drh-mini:/var/www/app-name
+# [2024-01-15T10:30:45.123Z] Loaded config from .env.dev
+# Deploying to dev-server:/var/www/app-name-dev
 # → bun run build
-# → ssh vitba@drh-mini "mkdir -p '/var/www/app-name' && cd '/var/www/app-name' && find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +"
-# → scp -r dist package.json bun.lockb vitba@drh-mini:/var/www/app-name/
-# → ssh vitba@drh-mini "zsh -i -c 'cd '/var/www/app-name' && bun install --production && ... && pm2 delete app-name >/dev/null 2>&1 || true && pm2 start dist/index.js --name app-name --interpreter bun --update-env && pm2 save'"
+# → ssh deploy@dev-server "mkdir -p '/var/www/app-name-dev' && cd '/var/www/app-name-dev' && find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +"
+# → scp -r dist package.json bun.lockb deploy@dev-server:/var/www/app-name-dev/
+# → ssh deploy@dev-server "zsh -i -c 'cd '/var/www/app-name-dev' && bun install --production && ... && pm2 delete app-name-dev >/dev/null 2>&1 || true && pm2 start dist/index.js --name app-name-dev --interpreter bun --update-env && pm2 save'"
 # ✓ Deployment complete!
+```
+
+### Production deployment (reads .env.prod)
+```bash
+bun scripts/deploy/deploy.ts --env-file=.env.prod
 ```
 
 Building is now part of `deploy()` itself (via `BUILD_COMMAND`); pass `--skip-build` on the CLI if you've already built and just want to redeploy.
 
 ## Troubleshooting
+
+**Config file not found**
+- The tool will list all available `.env*` files if the requested one doesn't exist
+- Create the appropriate config file (`.env`, `.env.dev`, `.env.prod`, etc.) in your project root
+- Ensure the file path is correct when using `--env-file=` flag
 
 **Command not found: bun/pm2**
 - The deployment uses interactive zsh shell (`zsh -i -c`) to load environment variables

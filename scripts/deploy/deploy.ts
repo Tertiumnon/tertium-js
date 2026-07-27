@@ -2,30 +2,41 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
-
-export interface DeployConfig {
-  projectDir?: string;
-  env?: Record<string, string>;
-  skipBuild?: boolean;
-}
+import type { DeployConfig, DeployEnv } from "./deploy.types";
 
 const LOCKFILE_CANDIDATES = ["bun.lockb", "bun.lock", "package-lock.json"];
 
-function log(message: string): void {
+const log = (message: string): void => {
   console.log(`[${new Date().toISOString()}] ${message}`);
-}
+};
 
-function run(command: string, cwd: string): void {
+const run = (command: string, cwd: string): void => {
   console.log(`→ ${command}`);
+  // Note: stdio: "inherit" requires object-style options, but TypeScript's
+  // ExecSyncOptions type doesn't properly support this combination.
+  // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
   execSync(command, { stdio: "inherit", cwd, shell: true } as any);
-}
+};
 
-// Load .env file
-export function loadEnv(projectDir: string): Record<string, string> {
-  const envPath = path.join(projectDir, ".env");
+// Load .env file (supports custom env files like .env.dev, .env.prod, etc.)
+export const loadEnv = (
+  projectDir: string,
+  envFile: string = ".env",
+): DeployEnv => {
+  const envPath = path.join(projectDir, envFile);
   if (!existsSync(envPath)) {
-    console.error("Error: .env file not found");
-    console.error(`Please copy .env.example to .env in ${projectDir}`);
+    const suggestions = [".env", ".env.dev", ".env.prod", ".env.staging"];
+    const found = suggestions.filter((f) =>
+      existsSync(path.join(projectDir, f)),
+    );
+    let message = `Error: ${envFile} file not found at ${projectDir}`;
+    if (found.length > 0) {
+      message += `\nAvailable config files: ${found.join(", ")}`;
+      message += `\nUse: bun scripts/deploy/deploy.ts --env-file=${found[0]}`;
+    } else {
+      message += `\nPlease create ${envFile} or copy .env.example to ${envFile} in ${projectDir}`;
+    }
+    console.error(message);
     process.exit(1);
   }
 
@@ -42,16 +53,21 @@ export function loadEnv(projectDir: string): Record<string, string> {
     }
   });
 
-  return env;
-}
+  log(`Loaded config from ${envFile}`);
+  return env as unknown as DeployEnv;
+};
 
 // Validate environment variables
-export function validate(env: Record<string, string>) {
-  const required = ["DEPLOY_USER", "DEPLOY_HOST", "DEPLOY_PATH"];
-  const missing = required.filter((key) => !env[key]);
+export const validate = (env: DeployEnv): void => {
+  const missing = [];
+  if (!env.DEPLOY_USER) missing.push("DEPLOY_USER");
+  if (!env.DEPLOY_HOST) missing.push("DEPLOY_HOST");
+  if (!env.DEPLOY_PATH) missing.push("DEPLOY_PATH");
 
   if (missing.length > 0) {
-    console.error(`Error: Missing environment variables: ${missing.join(", ")}`);
+    console.error(
+      `Error: Missing environment variables: ${missing.join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -65,36 +81,41 @@ export function validate(env: Record<string, string>) {
   }
 
   if (env.STATIC_SITE !== "true" && !env.APP_NAME) {
-    console.error("Error: APP_NAME is required for non-static site deployments");
+    console.error(
+      "Error: APP_NAME is required for non-static site deployments",
+    );
     process.exit(1);
   }
-}
+};
 
-function findLocalLockfile(projectDir: string): string | null {
+const findLocalLockfile = (projectDir: string): string | null => {
   for (const candidate of LOCKFILE_CANDIDATES) {
     if (existsSync(path.join(projectDir, candidate))) return candidate;
   }
   return null;
-}
+};
 
-function buildLocal(env: Record<string, string>, projectDir: string): void {
+const buildLocal = (env: DeployEnv, projectDir: string): void => {
   const buildCommand = env.BUILD_COMMAND || "bun run build";
   log("Building application locally...");
   run(buildCommand, projectDir);
-}
+};
 
 // Remove everything under DEPLOY_PATH except .env, so stale files (old
 // package.json, mismatched lockfiles, old builds) can never linger between
 // deployments. Creates DEPLOY_PATH first in case this is the first deploy.
-function cleanRemote(env: Record<string, string>): void {
+const cleanRemote = (env: DeployEnv): void => {
   log(`Cleaning remote directory (preserving .env): ${env.DEPLOY_PATH}`);
   const remoteCmd =
     `mkdir -p '${env.DEPLOY_PATH}' && cd '${env.DEPLOY_PATH}' && ` +
     `find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +`;
-  run(`ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "${remoteCmd}"`, process.cwd());
-}
+  run(
+    `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "${remoteCmd}"`,
+    process.cwd(),
+  );
+};
 
-function copyToRemote(env: Record<string, string>, projectDir: string): void {
+const copyToRemote = (env: DeployEnv, projectDir: string): void => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
   const isStaticSite = env.STATIC_SITE === "true";
   const destination = `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/`;
@@ -115,25 +136,25 @@ function copyToRemote(env: Record<string, string>, projectDir: string): void {
 
   const lockfile = findLocalLockfile(projectDir);
   if (lockfile) sources.push(lockfile);
-  else log("⚠ No lockfile found locally (bun.lockb / bun.lock / package-lock.json) — skipping");
+  else
+    log(
+      "⚠ No lockfile found locally (bun.lockb / bun.lock / package-lock.json) — skipping",
+    );
 
   if (env.SERVER_FILE && existsSync(path.join(projectDir, env.SERVER_FILE))) {
     sources.push(env.SERVER_FILE);
   }
 
   run(`scp -r ${sources.join(" ")} ${destination}`, projectDir);
-}
+};
 
-function restartRemote(env: Record<string, string>, projectDir: string): void {
+const restartRemote = (env: DeployEnv, projectDir: string): void => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
   const entryFile = env.SERVER_FILE || `${distDir}/index.js`;
   const appName = env.APP_NAME;
   const portOpt = env.PORT ? ` --env PORT=${env.PORT}` : "";
 
-  const steps = [
-    `cd '${env.DEPLOY_PATH}'`,
-    "bun install --production",
-  ];
+  const steps = [`cd '${env.DEPLOY_PATH}'`, "bun install --production"];
 
   // Optional Prisma generation, if the build produced a schema.
   steps.push(
@@ -144,18 +165,24 @@ function restartRemote(env: Record<string, string>, projectDir: string): void {
   // app running under the wrong interpreter (e.g. node) from a prior manual
   // or partial deploy. This guarantees Bun is used every time.
   steps.push(`pm2 delete ${appName} >/dev/null 2>&1 || true`);
-  steps.push(`pm2 start ${entryFile} --name ${appName} --interpreter bun --update-env${portOpt}`);
+  steps.push(
+    `pm2 start ${entryFile} --name ${appName} --interpreter bun --update-env${portOpt}`,
+  );
   steps.push("pm2 save");
 
   const remoteCmd = steps.join(" && ");
   log("Installing dependencies and restarting via PM2 (Bun interpreter)...");
-  run(`ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c '${remoteCmd}'"`, projectDir);
-}
+  run(
+    `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c '${remoteCmd}'"`,
+    projectDir,
+  );
+};
 
 // Main deploy function
-export function deploy(config: DeployConfig = {}): void {
+export const deploy = (config: DeployConfig = {}): void => {
   const projectDir = config.projectDir || process.cwd();
-  const env = config.env || loadEnv(projectDir);
+  const envFile = config.envFile || ".env";
+  const env = config.env || loadEnv(projectDir, envFile);
   validate(env);
 
   const isStaticSite = env.STATIC_SITE === "true";
@@ -179,14 +206,17 @@ export function deploy(config: DeployConfig = {}): void {
     }
 
     log("✓ Deployment complete!");
-  } catch (error: any) {
-    log(`✗ Deployment failed: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    log(`✗ Deployment failed: ${message}`);
     process.exit(1);
   }
-}
+};
 
 // CLI entry point - execute if called directly as a script
 if (process.argv[1]?.includes("deploy.ts")) {
   const skipBuild = process.argv.includes("--skip-build");
-  deploy({ skipBuild });
+  const envFileArg = process.argv.find((arg) => arg.startsWith("--env-file="));
+  const envFile = envFileArg ? envFileArg.split("=")[1] : undefined;
+  deploy({ skipBuild, envFile });
 }

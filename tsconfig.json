@@ -1,15 +1,22 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "esnext",
     "declaration": true,
     "outDir": "dist",
-    "rootDir": "app",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true
   },
-  "include": ["app/**/*.ts", "app/**/*.d.ts"],
+  "include": ["scripts/**/*.ts", "core/**/*.ts", "entities/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
