@@ -6,10 +6,12 @@ Automated deployment tool for Node.js/Bun projects using SSH and SCP.
 
 - **Automatic .env loading** - Reads environment variables from `.env` file automatically
 - **Variable validation** - Ensures all required variables are set, and that `DEPLOY_PATH` is a safe absolute path
-- **Builds locally** - Runs `BUILD_COMMAND` (default `bun run build`) before deploying, unless `--skip-build` is passed
+- **Two deploy modes** - **dist mode** (default): builds locally via `BUILD_COMMAND` and ships the pre-built `DIST_DIR`. **Source mode** (`SOURCE_DIRS` set): ships TypeScript source as-is and lets Bun run it directly on the remote host — no local build/bundle step at all. See "Source Mode" below.
 - **Clean remote deploy** - Removes everything under `DEPLOY_PATH` except `.env` before copying, so stale files (old `package.json`, mismatched lockfiles, old builds) can never linger between deployments
-- **SCP file transfer** - Copies `package.json`, a lockfile, and the whole `dist/` directory (preserving the folder, not flattening it) to the remote server
+- **SCP file transfer** - Copies `package.json`, a lockfile, and either `DIST_DIR` or the `SOURCE_DIRS` (preserving folder structure, not flattening it) to the remote server
 - **Remote dependency installation** - Runs `bun install --production` on remote
+- **Remote Prisma generate (optional)** - If `PRISMA_SCHEMA` is set, runs `prisma generate` against it on the remote host after install, so the native query engine always matches that host's own platform — no cross-shipping engine binaries built on a different OS/arch, and no `binaryTargets` list to keep in sync with every deploy target
+- **Remote migrations (optional, opt-in)** - If `RUN_MIGRATIONS=true` (and `PRISMA_SCHEMA` is set), runs `prisma migrate deploy` on the remote host after generate, before the app restarts
 - **PM2 service management, always on Bun** - Every deploy does `pm2 delete` + `pm2 start ... --interpreter bun`, so the app can never end up running under Node from a stale or manually-created PM2 process
 - **Cross-platform** - Works on Windows, macOS, and Linux with interactive shell support
 
@@ -119,14 +121,55 @@ DEPLOY_USER=vitba                        # SSH username (must own DEPLOY_PATH, o
 DEPLOY_HOST=drh-mini                     # SSH hostname or IP
 DEPLOY_PATH=/var/www/app-name            # Remote deployment directory (absolute path, not "/")
 STATIC_SITE=true                         # Set to "true" for static sites (skips bun install and PM2)
-DIST_DIR=dist                            # Local build directory to deploy (default: dist)
+DIST_DIR=dist                            # Local build directory to deploy (default: dist), ignored if SOURCE_DIRS is set
 APP_NAME=app-name                        # PM2 app name (required for non-static sites)
-BUILD_COMMAND=bun run build              # Optional, defaults to "bun run build"
-SERVER_FILE=server.js                    # Optional, overrides the default "${DIST_DIR}/index.js" entry point
+BUILD_COMMAND=bun run build              # Optional, defaults to "bun run build". Irrelevant in source mode - pass --skip-build instead
+SERVER_FILE=server.js                    # Optional, overrides the default entry point ("${DIST_DIR}/index.js", or "src/index.ts" in source mode)
 PORT=3000                                # Optional, passed to PM2 as the PORT env var
+SOURCE_DIRS=src,prisma                   # Optional: comma-separated dirs to ship as-is instead of DIST_DIR. Activates source mode - see below
+PRISMA_SCHEMA=prisma/schema.prisma       # Optional: project-relative schema path. If set, runs `prisma generate` on the remote host after install
+RUN_MIGRATIONS=true                      # Optional, default false. Also runs `prisma migrate deploy` remotely - only if migrations/ is your actual applied-migration history
 ```
 
 > Note: for non-static deployments, `DEPLOY_USER` connects directly over SSH — no `sudo`, no intermediate user. Set up a dedicated SSH key for this user (see Troubleshooting) rather than sharing your personal login.
+
+### Source Mode (classic Bun deployment, no build step)
+
+Bun runs TypeScript directly with negligible overhead, so for backend services there's often no
+real reason to bundle at all — bundling just adds a failure surface (a bundler baking the build
+machine's own absolute paths into things like Prisma's generated client, native addons getting
+marked external anyway and still requiring `node_modules`, cross-platform native binaries having
+to be pre-guessed via `binaryTargets` instead of generated where they'll actually run). This
+mirrors [Bun's own PM2 guide](https://bun.com/guides/ecosystem/pm2): `pm2 start src/index.ts
+--interpreter bun`, no build.
+
+Set `SOURCE_DIRS` to switch a project to source mode:
+
+```env
+SOURCE_DIRS=src,prisma
+PRISMA_SCHEMA=prisma/schema.prisma
+```
+
+With `SOURCE_DIRS` set:
+- The local build step is skipped in effect — don't rely on `BUILD_COMMAND`; pass `--skip-build`
+  in the npm script (e.g. `"deploy:dev": "... deploy.ts --env-file=.env.dev --skip-build"`), since
+  source mode has nothing for a build step to produce.
+- `copyToRemote` ships each listed directory as-is (plus `package.json` + lockfile) instead of a
+  single `DIST_DIR`.
+- The default PM2 entry file becomes `src/index.ts` instead of `${DIST_DIR}/index.js` (override
+  with `SERVER_FILE` if your entry point lives elsewhere).
+- If `PRISMA_SCHEMA` is set, `prisma generate` runs on the remote host itself after `bun install`,
+  so the native query engine is always generated for that host's actual platform — no
+  `binaryTargets` list to maintain per deploy target, and no cross-shipped engine binaries that
+  don't match where they're running.
+- If additionally `RUN_MIGRATIONS=true`, `prisma migrate deploy --schema=$PRISMA_SCHEMA` also runs
+  remotely, right after generate and before the app restarts. Leave this off for any project where
+  `prisma/migrations/` isn't the actual source of truth for what's been applied to the database
+  (e.g. schema changes are applied through one-off scripts and the migrations folder is kept only
+  for documentation) — running `migrate deploy` there would fight with however that project really
+  tracks its applied migrations.
+
+Dist mode (the default, `SOURCE_DIRS` unset) is unchanged and remains fully backward compatible.
 
 ### Static Site Deployment (Angular, React, Vue, etc.)
 
@@ -156,7 +199,7 @@ DIST_DIR=dist/my-app/browser/          # Angular example
    - Validates all required environment variables (DEPLOY_USER, DEPLOY_HOST, DEPLOY_PATH, APP_NAME)
    - Rejects an unsafe `DEPLOY_PATH` (must be absolute, must not be `/`)
 
-2. **Build** (unless `--skip-build`):
+2. **Build** (unless `--skip-build`, or ignored in source mode):
    - Runs `BUILD_COMMAND` (default `bun run build`) locally
 
 3. **Clean Remote** (SSH):
@@ -164,14 +207,15 @@ DIST_DIR=dist/my-app/browser/          # Angular example
    - Guarantees no file from a previous deploy (old `package.json`, old lockfile, orphaned build output) can leak into the new one
 
 4. **Copy Files** (SCP):
-   - App deployments: copies `package.json`, a lockfile (`bun.lockb` / `bun.lock` / `package-lock.json`, first one found), and the `dist/` directory itself — so it lands as `DEPLOY_PATH/dist/...`, matching PM2's entry point
+   - Dist mode: copies `package.json`, a lockfile (`bun.lockb` / `bun.lock` / `package-lock.json`, first one found), and the `dist/` directory itself — so it lands as `DEPLOY_PATH/dist/...`, matching PM2's entry point
+   - Source mode (`SOURCE_DIRS` set): copies each listed directory as-is instead of `dist/`, plus `package.json` and a lockfile
    - Static sites (`STATIC_SITE=true`): copies the *contents* of `DIST_DIR` directly into `DEPLOY_PATH`, since static assets are served from there directly
 
 5. **Remote Setup** (SSH with interactive zsh):
    - Uses `zsh -i -c` for proper shell environment (loads .zshrc/.bashrc)
    - Runs `bun install --production`
-   - Generates Prisma client if `${DIST_DIR}/src/db/schema.prisma` exists
-   - `pm2 delete APP_NAME` (ignored if it doesn't exist) then `pm2 start ${DIST_DIR}/index.js --name APP_NAME --interpreter bun` — always recreated fresh, so PM2 can never be left running the app under Node
+   - If `PRISMA_SCHEMA` is set: generates the Prisma Client against it on the remote host (native engine matches that host automatically), then optionally `prisma migrate deploy` if `RUN_MIGRATIONS=true`
+   - `pm2 delete APP_NAME` (ignored if it doesn't exist) then `pm2 start <entry file> --name APP_NAME --interpreter bun` — always recreated fresh, so PM2 can never be left running the app under Node. Entry file is `${DIST_DIR}/index.js` in dist mode, `src/index.ts` in source mode, or `SERVER_FILE` if set
    - `pm2 save` to persist across reboots
 
 ## Requirements

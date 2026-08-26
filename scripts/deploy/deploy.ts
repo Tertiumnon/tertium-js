@@ -129,10 +129,19 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
     return;
   }
 
-  // For app deployments, copy the dist directory itself (preserving the
-  // folder) plus package.json and a lockfile, so PM2's `${distDir}/index.js`
-  // path and `bun install` both resolve correctly on the remote side.
-  const sources = [distDir, "package.json"];
+  // Source mode: ship the listed project-relative directories as-is instead
+  // of a single pre-built DIST_DIR, so Bun runs the TypeScript source
+  // directly on the remote host (no local bundle to go stale or embed the
+  // build machine's own paths into anything, e.g. Prisma's generated client).
+  const sourceDirs = env.SOURCE_DIRS
+    ? env.SOURCE_DIRS.split(",").map((d) => d.trim()).filter(Boolean)
+    : null;
+
+  // For app deployments, copy either the source directories or the dist
+  // directory itself (preserving the folder) plus package.json and a
+  // lockfile, so PM2's entry file path and `bun install` both resolve
+  // correctly on the remote side.
+  const sources = [...(sourceDirs ?? [distDir]), "package.json"];
 
   const lockfile = findLocalLockfile(projectDir);
   if (lockfile) sources.push(lockfile);
@@ -150,16 +159,32 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
 
 const restartRemote = (env: DeployEnv, projectDir: string): void => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
-  const entryFile = env.SERVER_FILE || `${distDir}/index.js`;
+  const isSourceMode = !!env.SOURCE_DIRS;
+  const entryFile =
+    env.SERVER_FILE || (isSourceMode ? "src/index.ts" : `${distDir}/index.js`);
   const appName = env.APP_NAME;
   const portOpt = env.PORT ? ` --env PORT=${env.PORT}` : "";
 
   const steps = [`cd '${env.DEPLOY_PATH}'`, "bun install --production"];
 
-  // Optional Prisma generation, if the build produced a schema.
-  steps.push(
-    `if [ -f ${distDir}/src/db/schema.prisma ]; then bunx prisma generate --schema=${distDir}/src/db/schema.prisma; fi`,
-  );
+  // Generate the Prisma Client on the remote host itself, if a schema path
+  // was given, so its native query engine always matches that host's own
+  // platform instead of being cross-shipped from wherever the app was built.
+  if (env.PRISMA_SCHEMA) {
+    steps.push(
+      `if [ -f ${env.PRISMA_SCHEMA} ]; then bunx prisma generate --schema=${env.PRISMA_SCHEMA}; fi`,
+    );
+
+    // Opt-in only: some projects don't treat prisma/migrations as the
+    // source of truth for applied migrations (e.g. they apply schema
+    // changes through other tooling and keep the migrations folder purely
+    // for documentation), so `migrate deploy` must not run for those.
+    if (env.RUN_MIGRATIONS === "true") {
+      steps.push(
+        `if [ -f ${env.PRISMA_SCHEMA} ]; then bunx prisma migrate deploy --schema=${env.PRISMA_SCHEMA}; fi`,
+      );
+    }
+  }
 
   // Always delete-then-start rather than restart, so PM2 can never keep an
   // app running under the wrong interpreter (e.g. node) from a prior manual
