@@ -24,7 +24,28 @@ function getCurrentBranch(): string {
   }
 }
 
+// `npm version <type>` refuses to run at all if the working tree isn't clean (it needs
+// to create a commit containing only the version bump), failing with "Git working
+// directory not clean" - deep inside the release flow, easy to miss among all the other
+// git/npm output, and the symptom looks confusingly like "the script didn't change the
+// version" rather than "you have uncommitted changes". Check for this up front, before
+// touching any branches, so the actual problem is unmissable.
+function checkCleanWorkingTree(): void {
+  const status = execSync("git status --porcelain", { encoding: "utf-8" });
+  if (status.trim()) {
+    console.error(
+      "❌ Error: working tree has uncommitted changes - `npm version` refuses to run " +
+        "until they're committed (or stashed), and the rest of this script would " +
+        "silently never reach the version bump either. Commit or stash first:\n",
+    );
+    console.error(status);
+    exit(1);
+  }
+}
+
 function release(type: ReleaseType): void {
+  checkCleanWorkingTree();
+
   switch (type) {
     case "patch":
       // Patch release: from main branch
