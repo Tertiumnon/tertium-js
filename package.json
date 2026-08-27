@@ -15,6 +15,10 @@
   ],
   "scripts": {
     "clean": "bun scripts/clean/clean.ts",
+    "env:push": "bun scripts/aws-env/aws-env.ts push",
+    "env:pull": "bun scripts/aws-env/aws-env.ts pull",
+    "env:sync": "bun scripts/aws-env/aws-env.ts sync",
+    "env:deploy": "bun scripts/aws-env/aws-env.ts deploy",
     "release:patch": "bun scripts/release/release.ts patch",
     "release:minor": "bun scripts/release/release.ts minor",
     "release:major": "bun scripts/release/release.ts major",

@@ -14,6 +14,7 @@ A reusable TypeScript library providing shared core utilities, entity models, an
     - Release
     - Improve Start Scripts
     - Deploy
+    - AWS Env
 - Contributing
 
 ## Installation
@@ -188,6 +189,27 @@ deploy({
 ```
 
 **See:** [scripts/deploy/deploy.md](scripts/deploy/deploy.md)
+
+### AWS Env script (`./scripts/aws-env/*`)
+
+Stores `.env*` files in AWS SSM Parameter Store (SecureString, free standard tier) so AWS is the
+source of truth instead of a hand-maintained local file. `push` uploads a file after you edit it,
+`sync` refreshes the local cache from AWS with a graceful offline fallback, `pull` force-fetches
+the exact current source, `run` injects the local cache's variables into a child process (never
+touches the network itself, so a connectivity issue can't block starting the app), and `deploy`
+fetches a deploy-target config fresh from AWS, uses it for one deploy, and deletes it right after -
+`.env.dev`/`.env.prod` never need to sit on your laptop at all.
+
+```bash
+bun run env:push                # Upload .env after editing it
+bun run env:push -- --env-file=.env.dev
+bun run env:sync -- --env-file=.env.dev   # Refresh local cache; falls back to existing file if offline
+bun run env:pull -- --env-file=.env.dev   # Force-fetch, fails loudly if AWS is unreachable
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts run -- bun run dev
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts deploy --env-file=.env.prod --skip-build
+```
+
+**See:** [scripts/aws-env/aws-env.md](scripts/aws-env/aws-env.md)
 
 ## Contributing
 
