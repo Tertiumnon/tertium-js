@@ -169,10 +169,17 @@ resolveParamName({ projectDir: '/path/to/project', envFile: '.env.prod' });
 - **`deploy`**: fetches into a distinctly-named temp file (`<envFile>.deploy-tmp`, never the real
   `.env.dev`/`.env.prod` - can't collide with or clobber a local copy you happen to still have),
   calls the real `deploy()` from `scripts/deploy/deploy.ts` pointed at that temp file, then removes
-  it. Cleanup is registered on Node's `exit` event rather than a plain `try/finally`, because
-  `deploy()` calls `process.exit(1)` directly on validation/deploy failure instead of throwing -
-  `finally` would never run in that case, but an `exit` handler fires regardless of *how* the
-  process is ending. Also deletes any stale temp file left over from a previous run that got killed
+  it. Also merges the fetched vars into `process.env` (not just the temp file) - `deploy()` reads
+  the temp file itself for `DEPLOY_USER`/`HOST`/`PATH` etc, but if you're deploying without
+  `--skip-build`, `deploy()` runs its own local build step via `execSync`, which inherits
+  `process.env` rather than the temp file. Without the merge, build-time vars (e.g. Vite's
+  `VITE_*`) would be silently missing from that build - this is what makes `aws-env deploy` a
+  full drop-in replacement for `bun run build && deploy.ts ...` in dist-mode repos, not just for
+  source-mode ones. Cleanup is registered on Node's `exit` event rather than a plain `try/finally`,
+  because `deploy()` calls `process.exit(1)` directly on validation/deploy failure instead of
+  throwing - `finally` would never run in that case, but an `exit` handler fires regardless of
+  *how* the process is ending. Also deletes any stale temp file left over from a previous run that
+  got killed
   mid-deploy, before starting.
 
 ## Security notes

@@ -301,6 +301,13 @@ export const deployWithEnv = (
     "utf-8",
   );
 
+  // Also merge the fetched vars into process.env - not just the temp file. deploy()
+  // reads the temp file itself for DEPLOY_USER/HOST/PATH etc, but if this is a
+  // dist-mode deploy (opts.skipBuild not set), deploy() runs its own local build step
+  // via execSync, which inherits process.env rather than the temp file. Without this,
+  // build-time vars (e.g. Vite's VITE_*) would be silently missing from that build.
+  Object.assign(process.env, parseEnvContent(content));
+
   process.once("exit", () => {
     if (existsSync(tempPath)) {
       unlinkSync(tempPath);
