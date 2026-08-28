@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import type { DeployConfig, DeployEnv } from "./deploy.types";
 
@@ -157,13 +157,69 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
   run(`scp -r ${sources.join(" ")} ${destination}`, projectDir);
 };
 
+// Follows Bun's official PM2 guide (https://bun.com/guides/ecosystem/pm2):
+// a pm2.config.cjs with name/script/interpreter/env.PATH, started via
+// `pm2 start pm2.config.cjs`, rather than passing --interpreter/--env as CLI
+// flags. `PATH` is written as a literal JS template expression (not
+// interpolated here) so it's evaluated by Node on the REMOTE host when PM2
+// loads the config — i.e. it resolves the remote user's own $HOME/.bun/bin,
+// not whatever this deploy script's own machine has. This makes `bun` on
+// PATH self-contained in the process definition PM2 persists via `pm2 save`,
+// independent of the shell that happened to start it.
+const generatePm2ConfigContent = (
+  appName: string,
+  entryFile: string,
+  env: DeployEnv,
+): string => {
+  const envLines = ['    PATH: `${process.env.HOME}/.bun/bin:${process.env.PATH}`,'];
+  if (env.PORT) envLines.push(`    PORT: "${env.PORT}",`);
+
+  return [
+    "module.exports = {",
+    `  name: "${appName}",`,
+    `  script: "${entryFile}",`,
+    '  interpreter: "bun",',
+    "  env: {",
+    ...envLines,
+    "  },",
+    "};",
+    "",
+  ].join("\n");
+};
+
+// Writes pm2.config.cjs to a local throwaway temp file, scps it to the
+// remote deploy path (as `pm2.config.cjs`, regardless of the local temp
+// file's own name), then deletes the local copy. Must run after cleanRemote
+// (which wipes DEPLOY_PATH down to `.env`) and needs to happen on every
+// deploy, not just once, since that clean step would otherwise delete it.
+const copyPm2Config = (
+  env: DeployEnv,
+  appName: string,
+  entryFile: string,
+  projectDir: string,
+): void => {
+  const tmpPath = path.join(projectDir, "pm2.config.cjs.deploy-tmp");
+  writeFileSync(tmpPath, generatePm2ConfigContent(appName, entryFile, env));
+  try {
+    run(
+      `scp "${tmpPath}" ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:'${env.DEPLOY_PATH}/pm2.config.cjs'`,
+      projectDir,
+    );
+  } finally {
+    unlinkSync(tmpPath);
+  }
+};
+
 const restartRemote = (env: DeployEnv, projectDir: string): void => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
   const isSourceMode = !!env.SOURCE_DIRS;
   const entryFile =
     env.SERVER_FILE || (isSourceMode ? "src/index.ts" : `${distDir}/index.js`);
-  const appName = env.APP_NAME;
-  const portOpt = env.PORT ? ` --env PORT=${env.PORT}` : "";
+  // Non-null: restartRemote only runs for non-static-site deploys, and
+  // validate() already requires APP_NAME in that case.
+  const appName = env.APP_NAME as string;
+
+  copyPm2Config(env, appName, entryFile, projectDir);
 
   const steps = [`cd '${env.DEPLOY_PATH}'`, "bun install --production"];
 
@@ -190,9 +246,7 @@ const restartRemote = (env: DeployEnv, projectDir: string): void => {
   // app running under the wrong interpreter (e.g. node) from a prior manual
   // or partial deploy. This guarantees Bun is used every time.
   steps.push(`pm2 delete ${appName} >/dev/null 2>&1 || true`);
-  steps.push(
-    `pm2 start ${entryFile} --name ${appName} --interpreter bun --update-env${portOpt}`,
-  );
+  steps.push("pm2 start pm2.config.cjs --update-env");
   steps.push("pm2 save");
 
   const remoteCmd = steps.join(" && ");

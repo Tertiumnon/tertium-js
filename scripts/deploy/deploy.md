@@ -12,7 +12,7 @@ Automated deployment tool for Node.js/Bun projects using SSH and SCP.
 - **Remote dependency installation** - Runs `bun install --production` on remote
 - **Remote Prisma generate (optional)** - If `PRISMA_SCHEMA` is set, runs `prisma generate` against it on the remote host after install, so the native query engine always matches that host's own platform — no cross-shipping engine binaries built on a different OS/arch, and no `binaryTargets` list to keep in sync with every deploy target
 - **Remote migrations (optional, opt-in)** - If `RUN_MIGRATIONS=true` (and `PRISMA_SCHEMA` is set), runs `prisma migrate deploy` on the remote host after generate, before the app restarts
-- **PM2 service management, always on Bun** - Every deploy does `pm2 delete` + `pm2 start ... --interpreter bun`, so the app can never end up running under Node from a stale or manually-created PM2 process
+- **PM2 service management via `pm2.config.cjs`, always on Bun** - Every deploy generates and ships a `pm2.config.cjs` (matching [Bun's official PM2 guide](https://bun.com/guides/ecosystem/pm2): `name`/`script`/`interpreter: "bun"`/`env.PATH`) and does `pm2 delete` + `pm2 start pm2.config.cjs`, so the app can never end up running under Node from a stale or manually-created PM2 process, and `bun` stays resolvable even if PM2 resurrects the process outside of a deploy (e.g. after a host reboot, if `pm2 startup` is configured)
 - **Cross-platform** - Works on Windows, macOS, and Linux with interactive shell support
 
 ## Architecture
@@ -24,7 +24,8 @@ deploy.ts (TypeScript)
 ├── Builds locally (BUILD_COMMAND, skippable with --skip-build)
 ├── Cleans DEPLOY_PATH on remote, preserving .env
 ├── Copies package.json + lockfile + dist/ (as a folder) via SCP
-└── Executes SSH with interactive zsh shell: bun install, pm2 delete+start --interpreter bun, pm2 save
+├── Generates pm2.config.cjs locally and SCPs it to DEPLOY_PATH (fresh every deploy — cleanRemote wiped the previous one)
+└── Executes SSH with interactive zsh shell: bun install, pm2 delete + start pm2.config.cjs, pm2 save
 ```
 
 ## Usage
@@ -139,9 +140,10 @@ Bun runs TypeScript directly with negligible overhead, so for backend services t
 real reason to bundle at all — bundling just adds a failure surface (a bundler baking the build
 machine's own absolute paths into things like Prisma's generated client, native addons getting
 marked external anyway and still requiring `node_modules`, cross-platform native binaries having
-to be pre-guessed via `binaryTargets` instead of generated where they'll actually run). This
-mirrors [Bun's own PM2 guide](https://bun.com/guides/ecosystem/pm2): `pm2 start src/index.ts
---interpreter bun`, no build.
+to be pre-guessed via `binaryTargets` instead of generated where they'll actually run). Combined
+with the `pm2.config.cjs` PM2 setup described below, this follows
+[Bun's own PM2 guide](https://bun.com/guides/ecosystem/pm2) directly: a config file with
+`script: "src/index.ts"`, `interpreter: "bun"`, no build step.
 
 Set `SOURCE_DIRS` to switch a project to source mode:
 
@@ -211,12 +213,16 @@ DIST_DIR=dist/my-app/browser/          # Angular example
    - Source mode (`SOURCE_DIRS` set): copies each listed directory as-is instead of `dist/`, plus `package.json` and a lockfile
    - Static sites (`STATIC_SITE=true`): copies the *contents* of `DIST_DIR` directly into `DEPLOY_PATH`, since static assets are served from there directly
 
-5. **Remote Setup** (SSH with interactive zsh):
+5. **Generate & Copy `pm2.config.cjs`** (local write + SCP, non-static only):
+   - Written to a local throwaway temp file (`pm2.config.cjs.deploy-tmp`), SCP'd to `DEPLOY_PATH/pm2.config.cjs`, then the local temp file is deleted — happens on every deploy, since step 3 already wiped any previous copy on the remote
+   - Content follows [Bun's PM2 guide](https://bun.com/guides/ecosystem/pm2): `name: APP_NAME`, `script: <entry file>`, `interpreter: "bun"`, and `env.PATH` set to a **remote-evaluated** template expression (`` `${process.env.HOME}/.bun/bin:${process.env.PATH}` ``, literally written into the file as JS source, not interpolated by `deploy.ts`) — so it resolves the *remote* user's own bun install location when PM2 (re)reads the config, not whatever machine ran the deploy. `env.PORT` is included too if `PORT` is set.
+
+6. **Remote Setup** (SSH with interactive zsh):
    - Uses `zsh -i -c` for proper shell environment (loads .zshrc/.bashrc)
    - Runs `bun install --production`
    - If `PRISMA_SCHEMA` is set: generates the Prisma Client against it on the remote host (native engine matches that host automatically), then optionally `prisma migrate deploy` if `RUN_MIGRATIONS=true`
-   - `pm2 delete APP_NAME` (ignored if it doesn't exist) then `pm2 start <entry file> --name APP_NAME --interpreter bun` — always recreated fresh, so PM2 can never be left running the app under Node. Entry file is `${DIST_DIR}/index.js` in dist mode, `src/index.ts` in source mode, or `SERVER_FILE` if set
-   - `pm2 save` to persist across reboots
+   - `pm2 delete APP_NAME` (ignored if it doesn't exist) then `pm2 start pm2.config.cjs --update-env` — always recreated fresh, so PM2 can never be left running the app under Node
+   - `pm2 save` to persist across reboots — this only actually restores anything after a *host* reboot if `pm2 startup` has also been set up once on that host (a separate, manual, `sudo`-requiring step; `deploy.ts` does not do this for you)
 
 ## Requirements
 
@@ -244,7 +250,8 @@ bun scripts/deploy/deploy.ts --env-file=.env.dev
 # → bun run build
 # → ssh deploy@dev-server "mkdir -p '/var/www/app-name-dev' && cd '/var/www/app-name-dev' && find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +"
 # → scp -r dist package.json bun.lockb deploy@dev-server:/var/www/app-name-dev/
-# → ssh deploy@dev-server "zsh -i -c 'cd '/var/www/app-name-dev' && bun install --production && ... && pm2 delete app-name-dev >/dev/null 2>&1 || true && pm2 start dist/index.js --name app-name-dev --interpreter bun --update-env && pm2 save'"
+# → scp "pm2.config.cjs.deploy-tmp" deploy@dev-server:'/var/www/app-name-dev/pm2.config.cjs'
+# → ssh deploy@dev-server "zsh -i -c 'cd '/var/www/app-name-dev' && bun install --production && ... && pm2 delete app-name-dev >/dev/null 2>&1 || true && pm2 start pm2.config.cjs --update-env && pm2 save'"
 # ✓ Deployment complete!
 ```
 
@@ -268,7 +275,10 @@ Building is now part of `deploy()` itself (via `BUILD_COMMAND`); pass `--skip-bu
 - Check that `~/.zshrc` or `~/.bashrc` properly sets up the PATH
 
 **PM2 process not found**
-- Every deployment deletes and recreates the PM2 process (with `--interpreter bun`), so this is expected on first deploy and harmless on every deploy after
+- Every deployment deletes and recreates the PM2 process (via `pm2.config.cjs`), so this is expected on first deploy and harmless on every deploy after
+
+**Process doesn't come back after a host reboot**
+- `pm2 save` (which every deploy runs) only persists the process list to `~/.pm2/dump.pm2` — it does **not** make PM2 itself start on boot. That needs a one-time, separate, `sudo`-requiring step per host: `pm2 startup` (prints the exact command for your platform/init system; run the command it prints), which installs a launchd/systemd service that runs `pm2 resurrect` on boot. Check whether it's set up: on macOS, `ls ~/Library/LaunchAgents/ | grep pm2`; if nothing matches, it isn't.
 
 **SCP permission denied / password prompt**
 - Ensure DEPLOY_USER has a dedicated SSH key trusted in its `~/.ssh/authorized_keys` on the remote host — don't reuse a personal login's key, and don't rely on password auth
