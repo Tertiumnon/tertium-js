@@ -1,6 +1,12 @@
 #!/usr/bin/env node
-import { execSync } from "node:child_process";
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { execFileSync, execSync } from "node:child_process";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import * as path from "node:path";
 import type { DeployConfig, DeployEnv } from "./deploy.types";
 
@@ -10,12 +16,28 @@ const log = (message: string): void => {
   console.log(`[${new Date().toISOString()}] ${message}`);
 };
 
+// For BUILD_COMMAND only: an arbitrary user-configured shell command (may
+// use &&, env vars, etc.), so it genuinely needs a shell to interpret it.
 const run = (command: string, cwd: string): void => {
   console.log(`→ ${command}`);
   // Note: stdio: "inherit" requires object-style options, but TypeScript's
   // ExecSyncOptions type doesn't properly support this combination.
   // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
   execSync(command, { stdio: "inherit", cwd, shell: true } as any);
+};
+
+// For ssh/scp: no shell at all, so argv reaches the process exactly as
+// built here regardless of the local OS/shell. `run()`'s `shell: true` was
+// wrong for these — on Windows it resolves to whatever `execSync` picks
+// (cmd.exe, unless the SHELL env var happens to point at a POSIX shell, as
+// Git Bash sets but PowerShell/cmd don't), and cmd.exe doesn't strip the
+// single quotes this file wraps remote paths in, corrupting them. Local
+// glob patterns (e.g. `dist/*`) also won't expand without a shell — see
+// the manual `readdirSync` expansion in `copyToRemote`.
+const runArgv = (cmd: string, args: string[], cwd: string): void => {
+  console.log(`→ ${cmd} ${args.join(" ")}`);
+  // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
+  execFileSync(cmd, args, { stdio: "inherit", cwd } as any);
 };
 
 // Load .env file (supports custom env files like .env.dev, .env.prod, etc.)
@@ -106,11 +128,15 @@ const buildLocal = (env: DeployEnv, projectDir: string): void => {
 // deployments. Creates DEPLOY_PATH first in case this is the first deploy.
 const cleanRemote = (env: DeployEnv): void => {
   log(`Cleaning remote directory (preserving .env): ${env.DEPLOY_PATH}`);
+  // The single quotes here are for the REMOTE shell (whatever runs this
+  // string on DEPLOY_HOST when ssh forwards it) — unaffected by the local
+  // OS/shell, since the whole string is one argv element passed to ssh.
   const remoteCmd =
     `mkdir -p '${env.DEPLOY_PATH}' && cd '${env.DEPLOY_PATH}' && ` +
     `find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +`;
-  run(
-    `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "${remoteCmd}"`,
+  runArgv(
+    "ssh",
+    [`${env.DEPLOY_USER}@${env.DEPLOY_HOST}`, remoteCmd],
     process.cwd(),
   );
 };
@@ -124,8 +150,13 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
 
   if (isStaticSite) {
     // Static assets are served directly from DEPLOY_PATH, so copy the
-    // *contents* of the dist dir rather than the dist dir itself.
-    run(`scp -r ${distDir}/* ${destination}`, projectDir);
+    // *contents* of the dist dir rather than the dist dir itself. Expand
+    // the glob ourselves — execFileSync doesn't invoke a shell, so `dist/*`
+    // would otherwise reach scp as a literal, non-matching path.
+    const entries = readdirSync(path.join(projectDir, distDir)).map((entry) =>
+      path.join(distDir, entry),
+    );
+    runArgv("scp", ["-r", ...entries, destination], projectDir);
     return;
   }
 
@@ -154,7 +185,7 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
     sources.push(env.SERVER_FILE);
   }
 
-  run(`scp -r ${sources.join(" ")} ${destination}`, projectDir);
+  runArgv("scp", ["-r", ...sources, destination], projectDir);
 };
 
 // Follows Bun's official PM2 guide (https://bun.com/guides/ecosystem/pm2):
@@ -201,8 +232,9 @@ const copyPm2Config = (
   const tmpPath = path.join(projectDir, "pm2.config.cjs.deploy-tmp");
   writeFileSync(tmpPath, generatePm2ConfigContent(appName, entryFile, env));
   try {
-    run(
-      `scp "${tmpPath}" ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:'${env.DEPLOY_PATH}/pm2.config.cjs'`,
+    runArgv(
+      "scp",
+      [tmpPath, `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/pm2.config.cjs`],
       projectDir,
     );
   } finally {
@@ -251,8 +283,9 @@ const restartRemote = (env: DeployEnv, projectDir: string): void => {
 
   const remoteCmd = steps.join(" && ");
   log("Installing dependencies and restarting via PM2 (Bun interpreter)...");
-  run(
-    `ssh ${env.DEPLOY_USER}@${env.DEPLOY_HOST} "zsh -i -c '${remoteCmd}'"`,
+  runArgv(
+    "ssh",
+    [`${env.DEPLOY_USER}@${env.DEPLOY_HOST}`, `zsh -i -c '${remoteCmd}'`],
     projectDir,
   );
 };
