@@ -46,7 +46,7 @@ Specialized agent for code generation and implementation tasks in the @tertium/j
 - No `function` keyword declarations
 - Import types with `import type { TypeName } from './module.types'`
 - Suppress biome/eslint rules with inline comments when justified
-- Test with `bun run lint:check:ts` and `bun run lint`
+- Test with `bun run typecheck` and `bun run lint`
 
 ## Common Tasks
 

@@ -14,7 +14,7 @@
     "typeScript": "strict-mode"
   },
   "tools": {
-    "typescript": "bun run lint:check:ts",
+    "typescript": "bun run typecheck",
     "linting": "bun run lint",
     "formatting": "bun run lint:fix",
     "testing": "bun run test"

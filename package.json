@@ -22,12 +22,12 @@
     "release:patch": "bun scripts/release/release.ts patch",
     "release:minor": "bun scripts/release/release.ts minor",
     "release:major": "bun scripts/release/release.ts major",
+    "workflow:publish": "bun scripts/publish-workflow/publish-workflow.ts",
     "test": "bun test --no-coverage || echo 'No tests found'",
     "lint": "biome check scripts core entities",
-    "lint:check:ts": "tsc --noEmit",
-    "format": "biome format scripts core entities",
-    "biome-check": "biome check scripts core entities",
-    "lint:fix": "biome check --write scripts core entities"
+    "lint:fix": "biome check --write scripts core entities",
+    "typecheck": "tsc --noEmit",
+    "format": "biome format scripts core entities"
   },
   "author": "Vitalii Balabanov",
   "license": "ISC",
