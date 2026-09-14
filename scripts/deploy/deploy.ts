@@ -197,12 +197,22 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
 // not whatever this deploy script's own machine has. This makes `bun` on
 // PATH self-contained in the process definition PM2 persists via `pm2 save`,
 // independent of the shell that happened to start it.
+//
+// The guide's own PATH expression (`${HOME}/.bun/bin:${PATH}`) blindly
+// prepends without checking whether it's already there. On a host whose
+// shell profile also puts bun on PATH (common — `.zshrc`/`.bashrc` after a
+// standard bun install), every redeploy re-evaluates this expression against
+// a PATH that already has the entry, so it silently grows by one duplicate
+// per deploy forever. Deduplicating at generation time makes the config
+// idempotent regardless of how many times it's regenerated.
 const generatePm2ConfigContent = (
   appName: string,
   entryFile: string,
   env: DeployEnv,
 ): string => {
-  const envLines = ['    PATH: `${process.env.HOME}/.bun/bin:${process.env.PATH}`,'];
+  const envLines = [
+    '    PATH: [...new Set(`${process.env.HOME}/.bun/bin:${process.env.PATH}`.split(":"))].join(":"),',
+  ];
   if (env.PORT) envLines.push(`    PORT: "${env.PORT}",`);
 
   return [
@@ -276,9 +286,12 @@ const restartRemote = (env: DeployEnv, projectDir: string): void => {
 
   // Always delete-then-start rather than restart, so PM2 can never keep an
   // app running under the wrong interpreter (e.g. node) from a prior manual
-  // or partial deploy. This guarantees Bun is used every time.
+  // or partial deploy. This guarantees Bun is used every time. Since the app
+  // is always freshly deleted first, `--update-env` (for refreshing a
+  // still-running process's env) would be redundant — `pm2 start` always
+  // reads pm2.config.cjs fresh here regardless.
   steps.push(`pm2 delete ${appName} >/dev/null 2>&1 || true`);
-  steps.push("pm2 start pm2.config.cjs --update-env");
+  steps.push("pm2 start pm2.config.cjs");
   steps.push("pm2 save");
 
   const remoteCmd = steps.join(" && ");
