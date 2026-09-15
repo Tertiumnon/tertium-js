@@ -23,11 +23,13 @@
     "release:minor": "bun scripts/release/release.ts minor",
     "release:major": "bun scripts/release/release.ts major",
     "workflow:publish": "bun scripts/publish-workflow/publish-workflow.ts",
+    "hooks:install": "bun scripts/git-hooks/git-hooks.ts",
     "test": "bun test --no-coverage || echo 'No tests found'",
     "lint": "biome check scripts core entities",
     "lint:fix": "biome check --write scripts core entities",
     "typecheck": "tsc --noEmit",
-    "format": "biome format scripts core entities"
+    "format": "biome format scripts core entities",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "author": "Vitalii Balabanov",
   "license": "ISC",

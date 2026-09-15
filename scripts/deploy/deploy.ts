@@ -165,7 +165,9 @@ const copyToRemote = (env: DeployEnv, projectDir: string): void => {
   // directly on the remote host (no local bundle to go stale or embed the
   // build machine's own paths into anything, e.g. Prisma's generated client).
   const sourceDirs = env.SOURCE_DIRS
-    ? env.SOURCE_DIRS.split(",").map((d) => d.trim()).filter(Boolean)
+    ? env.SOURCE_DIRS.split(",")
+        .map((d) => d.trim())
+        .filter(Boolean)
     : null;
 
   // For app deployments, copy either the source directories or the dist
@@ -211,6 +213,7 @@ const generatePm2ConfigContent = (
   env: DeployEnv,
 ): string => {
   const envLines = [
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: literal JS evaluated on the remote host, per the comment above - not meant to be interpolated here.
     '    PATH: [...new Set(`${process.env.HOME}/.bun/bin:${process.env.PATH}`.split(":"))].join(":"),',
   ];
   if (env.PORT) envLines.push(`    PORT: "${env.PORT}",`);
@@ -244,7 +247,10 @@ const copyPm2Config = (
   try {
     runArgv(
       "scp",
-      [tmpPath, `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/pm2.config.cjs`],
+      [
+        tmpPath,
+        `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/pm2.config.cjs`,
+      ],
       projectDir,
     );
   } finally {

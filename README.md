@@ -16,6 +16,7 @@ A reusable TypeScript library providing shared core utilities, entity models, an
     - Deploy
     - AWS Env
     - Publish Workflow
+    - Git Hooks
 - Contributing
 
 ## Installation
@@ -82,7 +83,8 @@ Add scripts to your project's `package.json`:
     "release:minor": "bun node_modules/@tertium/js/scripts/release/release.ts minor",
     "release:major": "bun node_modules/@tertium/js/scripts/release/release.ts major",
     "deploy": "bun node_modules/@tertium/js/scripts/deploy/deploy.ts",
-    "workflow:publish": "bun node_modules/@tertium/js/scripts/publish-workflow/publish-workflow.ts"
+    "workflow:publish": "bun node_modules/@tertium/js/scripts/publish-workflow/publish-workflow.ts",
+    "hooks:install": "bun node_modules/@tertium/js/scripts/git-hooks/git-hooks.ts"
   }
 }
 ```
@@ -226,6 +228,20 @@ bun run workflow:publish -- --force # Overwrite an existing workflow file
 ```
 
 **See:** [scripts/publish-workflow/publish-workflow.md](scripts/publish-workflow/publish-workflow.md)
+
+### Git Hooks script (`./scripts/git-hooks/*`)
+
+Generates a version-controlled `.githooks/pre-commit` hook (lint/typecheck/test) and points
+`git config core.hooksPath` at it, so a broken commit can't slip through — and adds a
+`prepare` script so every contributor's next install re-wires the hook path automatically,
+since `.githooks/` is tracked in git unlike `.git/hooks/`.
+
+```bash
+bun run hooks:install            # Generate .githooks/pre-commit and wire it up
+bun run hooks:install -- --force # Overwrite an existing hook file
+```
+
+**See:** [scripts/git-hooks/git-hooks.md](scripts/git-hooks/git-hooks.md)
 
 ## Contributing
 
