@@ -3,6 +3,10 @@
   "version": "2.7.2",
   "description": "Shared JS configs and types.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tertiumnon/tertium-js"
+  },
   "exports": {
     "./core/*": "./core/*",
     "./entities/*": "./entities/*",
