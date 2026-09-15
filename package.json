@@ -22,7 +22,7 @@
     "release:patch": "bun scripts/release/release.ts patch",
     "release:minor": "bun scripts/release/release.ts minor",
     "release:major": "bun scripts/release/release.ts major",
-    "workflow:publish": "bun scripts/publish-workflow/publish-workflow.ts",
+    "workflow:publish": "bun scripts/npm-publish-workflow/npm-publish-workflow.ts",
     "hooks:install": "bun scripts/git-hooks/git-hooks.ts",
     "test": "bun test --no-coverage || echo 'No tests found'",
     "lint": "biome check scripts core entities",

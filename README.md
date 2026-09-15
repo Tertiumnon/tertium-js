@@ -83,7 +83,7 @@ Add scripts to your project's `package.json`:
     "release:minor": "bun node_modules/@tertium/js/scripts/release/release.ts minor",
     "release:major": "bun node_modules/@tertium/js/scripts/release/release.ts major",
     "deploy": "bun node_modules/@tertium/js/scripts/deploy/deploy.ts",
-    "workflow:publish": "bun node_modules/@tertium/js/scripts/publish-workflow/publish-workflow.ts",
+    "workflow:publish": "bun node_modules/@tertium/js/scripts/npm-publish-workflow/npm-publish-workflow.ts",
     "hooks:install": "bun node_modules/@tertium/js/scripts/git-hooks/git-hooks.ts"
   }
 }
@@ -215,7 +215,7 @@ bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts deploy --env-file=.env.p
 
 **See:** [scripts/aws-env/aws-env.md](scripts/aws-env/aws-env.md)
 
-### Publish Workflow script (`./scripts/publish-workflow/*`)
+### Publish Workflow script (`./scripts/npm-publish-workflow/*`)
 
 Generates `.github/workflows/publish.yml`, which publishes the package to npm via
 [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) on every `v*` tag push -
@@ -227,7 +227,7 @@ bun run workflow:publish            # Generate .github/workflows/publish.yml
 bun run workflow:publish -- --force # Overwrite an existing workflow file
 ```
 
-**See:** [scripts/publish-workflow/publish-workflow.md](scripts/publish-workflow/publish-workflow.md)
+**See:** [scripts/npm-publish-workflow/npm-publish-workflow.md](scripts/npm-publish-workflow/npm-publish-workflow.md)
 
 ### Git Hooks script (`./scripts/git-hooks/*`)
 

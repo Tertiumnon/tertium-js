@@ -1,4 +1,4 @@
-import type { PackageManager } from "./publish-workflow.types";
+import type { PackageManager } from "./npm-publish-workflow.types";
 
 export const LOCKFILE_MANAGERS: Array<{
   file: string;

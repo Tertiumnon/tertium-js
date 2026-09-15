@@ -1,12 +1,12 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { PackageJson } from "./publish-workflow.types";
+import type { PackageJson } from "./npm-publish-workflow.types";
 import {
   buildWorkflowYaml,
   detectPackageManager,
   isTypeScriptProject,
   readPackageJson,
-} from "./publish-workflow.utils";
+} from "./npm-publish-workflow.utils";
 
 function setupPublishWorkflow(
   projectPath: string,
@@ -75,7 +75,7 @@ const force = process.argv.includes("--force");
 
 if (process.argv.includes("--help")) {
   console.log(`
-Usage: publish-workflow.ts [projectPath] [options]
+Usage: npm-publish-workflow.ts [projectPath] [options]
 
 Generates .github/workflows/publish.yml, which publishes the package to npm
 via trusted publishing (OIDC) whenever a "v*" tag is pushed. See:
@@ -86,9 +86,9 @@ Options:
   --help        Show this help message
 
 Examples:
-  bun scripts/publish-workflow/publish-workflow.ts
-  bun scripts/publish-workflow/publish-workflow.ts ./some-project
-  bun scripts/publish-workflow/publish-workflow.ts --force
+  bun scripts/npm-publish-workflow/npm-publish-workflow.ts
+  bun scripts/npm-publish-workflow/npm-publish-workflow.ts ./some-project
+  bun scripts/npm-publish-workflow/npm-publish-workflow.ts --force
 `);
   process.exit(0);
 }

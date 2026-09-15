@@ -28,23 +28,23 @@ the project.
 
 ### Generate for the current project
 ```bash
-bun scripts/publish-workflow/publish-workflow.ts
-node node_modules/@tertium/js/scripts/publish-workflow/publish-workflow.ts
+bun scripts/npm-publish-workflow/npm-publish-workflow.ts
+node node_modules/@tertium/js/scripts/npm-publish-workflow/npm-publish-workflow.ts
 ```
 
 ### Generate for a specific project
 ```bash
-bun scripts/publish-workflow/publish-workflow.ts /path/to/project
+bun scripts/npm-publish-workflow/npm-publish-workflow.ts /path/to/project
 ```
 
 ### Overwrite an existing workflow / force a private package
 ```bash
-bun scripts/publish-workflow/publish-workflow.ts --force
+bun scripts/npm-publish-workflow/npm-publish-workflow.ts --force
 ```
 
 ### Show help
 ```bash
-bun scripts/publish-workflow/publish-workflow.ts --help
+bun scripts/npm-publish-workflow/npm-publish-workflow.ts --help
 ```
 
 ## Adding to Your Project
@@ -52,7 +52,7 @@ bun scripts/publish-workflow/publish-workflow.ts --help
 ```json
 {
   "scripts": {
-    "workflow:publish": "bun node_modules/@tertium/js/scripts/publish-workflow/publish-workflow.ts"
+    "workflow:publish": "bun node_modules/@tertium/js/scripts/npm-publish-workflow/npm-publish-workflow.ts"
   }
 }
 ```

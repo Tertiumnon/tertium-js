@@ -35,7 +35,7 @@ function checkBlock(
 }
 
 // Every @tertium TypeScript project is expected to carry standard "lint" and "typecheck"
-// scripts (same convention enforced by scripts/publish-workflow), so for TS projects these
+// scripts (same convention enforced by scripts/npm-publish-workflow), so for TS projects these
 // checks are always included even if the scripts aren't defined yet - the hook then fails
 // loudly with "missing script" instead of silently skipping the check. "test" only runs if
 // the project actually defines it, since not every project has a test suite.

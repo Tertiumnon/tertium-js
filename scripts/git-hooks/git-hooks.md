@@ -10,7 +10,7 @@ requiring each person to set it up by hand.
 2. **Detects** whether the project is TypeScript (`tsconfig.json` present, or `typescript` in
    `dependencies`/`devDependencies`). TypeScript projects always get `lint` and `typecheck`
    checks in the hook — the same @tertium convention enforced by
-   [`scripts/publish-workflow`](../publish-workflow/publish-workflow.md) — even if those
+   [`scripts/npm-publish-workflow`](../npm-publish-workflow/npm-publish-workflow.md) — even if those
    scripts aren't defined yet, so the hook fails loudly instead of silently skipping the
    check. `test` is only included if the project actually defines a `test` script
 3. **Writes** `.githooks/pre-commit` and runs `git config core.hooksPath .githooks`
