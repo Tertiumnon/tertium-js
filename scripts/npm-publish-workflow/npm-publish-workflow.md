@@ -72,8 +72,12 @@ publisher on npmjs.com - this is a manual, one-time step the script cannot do fo
 
 ## Requirements
 
-- npm CLI 11.5.1+ and Node 22.14.0+ (the generated workflow pins `node-version: "lts/*"`,
-  which satisfies this)
+- npm CLI 11.5.1+ and Node 22.14.0+. `node-version: "lts/*"` satisfies the Node requirement,
+  but Node's *bundled* npm is not guaranteed to be new enough — an older npm has no idea
+  trusted publishing exists, silently skips the OIDC exchange, and attempts a plain
+  unauthenticated publish instead (which fails with a registry 404, not an auth error, so it's
+  easy to misdiagnose). The generated workflow runs `npm install -g npm@latest` right after
+  `Setup Node` specifically to rule this out
 - GitHub-hosted runners only — self-hosted runners aren't supported by npm trusted publishing
 - Public repository, or a paid npm plan, for provenance attestations to be generated
 

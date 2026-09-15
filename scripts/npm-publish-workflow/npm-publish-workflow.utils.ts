@@ -94,6 +94,9 @@ jobs:
           node-version: "lts/*"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
+
 ${TOOLCHAIN_SETUP_STEP[manager]}      - name: Install dependencies
         run: ${INSTALL_COMMAND[manager]}
 
