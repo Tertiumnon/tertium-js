@@ -61,6 +61,9 @@ function setupPublishWorkflow(
       - Repository: <this repo's name>
       - Workflow filename: publish.yml
       - Environment name: (leave blank unless you added one)
+      - Allowed actions: also enable "npm publish", not just the default
+        "npm stage publish" - otherwise this workflow's \`npm publish\` step
+        fails with "403 OIDC permission denied for this action"
    3. No NPM_TOKEN secret is needed - the workflow authenticates via OIDC.
 
 Trigger: push a "v*" tag (e.g. \`npm version patch && git push --tags\`) or run the workflow manually.

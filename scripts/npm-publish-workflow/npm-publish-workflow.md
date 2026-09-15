@@ -68,6 +68,11 @@ publisher on npmjs.com - this is a manual, one-time step the script cannot do fo
    - Repository: this repo's name
    - Workflow filename: `publish.yml`
    - Environment name: leave blank unless the workflow was edited to add one
+   - **Allowed actions: also enable `npm publish`.** The npmjs.com UI only grants
+     `npm stage publish` by default (a staged release requiring separate manual approval);
+     without also enabling direct `npm publish`, this workflow's publish step fails with
+     `403 OIDC permission denied for this action` even though the trusted publisher itself
+     is configured correctly
 3. No `NPM_TOKEN` secret is required — the workflow authenticates via short-lived OIDC tokens.
 
 ## Requirements
