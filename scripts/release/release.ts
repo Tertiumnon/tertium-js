@@ -58,7 +58,13 @@ function release(type: ReleaseType): void {
       run("git checkout develop");
       run("git pull");
       run("git rebase main");
-      run("git push");
+      // Rebase replays any commit develop had that main didn't yet, which always
+      // mints new hashes for them - so this push can never be a fast-forward of
+      // origin/develop except in the trivial case where the rebase did nothing.
+      // --force-with-lease is the correct completion of "I rebased a pushed
+      // branch": it publishes the new history but still refuses if origin/develop
+      // moved since our last fetch, so we never clobber someone else's push.
+      run("git push --force-with-lease");
       run("git checkout main");
       console.log("\n✅ Patch release complete!\n");
       break;
