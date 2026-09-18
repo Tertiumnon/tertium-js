@@ -1,6 +1,6 @@
 {
   "name": "@tertium/js",
-  "version": "2.8.1",
+  "version": "2.9.0",
   "description": "Shared JS configs and types.",
   "type": "module",
   "repository": {
