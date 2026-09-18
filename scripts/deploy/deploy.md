@@ -1,6 +1,7 @@
 # Deploy Command
 
-Automated deployment tool for Node.js/Bun projects using SSH and SCP.
+Automated deployment tool for Node.js/Bun projects using SSH and SCP, transferring everything as
+a single tar.gz over one connection rather than file-by-file.
 
 ## Features
 
@@ -8,11 +9,11 @@ Automated deployment tool for Node.js/Bun projects using SSH and SCP.
 - **Variable validation** - Ensures all required variables are set, and that `DEPLOY_PATH` is a safe absolute path
 - **Two deploy modes** - **dist mode** (default): builds locally via `BUILD_COMMAND` and ships the pre-built `DIST_DIR`. **Source mode** (`SOURCE_DIRS` set): ships TypeScript source as-is and lets Bun run it directly on the remote host — no local build/bundle step at all. See "Source Mode" below.
 - **Clean remote deploy** - Removes everything under `DEPLOY_PATH` except `.env` before copying, so stale files (old `package.json`, mismatched lockfiles, old builds) can never linger between deployments
-- **SCP file transfer** - Copies `package.json`, a lockfile, and either `DIST_DIR` or the `SOURCE_DIRS` (preserving folder structure, not flattening it) to the remote server
+- **Single-archive transfer** - Packs `package.json`, a lockfile, either `DIST_DIR` or the `SOURCE_DIRS` (preserving folder structure), and `pm2.config.cjs` into one tar.gz, ships it with one `scp`, then extracts it remotely with `tar` - one round-trip regardless of file count, instead of scp negotiating a connection per file
 - **Remote dependency installation** - Runs `bun install --production` on remote
 - **Remote Prisma generate (optional)** - If `PRISMA_SCHEMA` is set, runs `prisma generate` against it on the remote host after install, so the native query engine always matches that host's own platform — no cross-shipping engine binaries built on a different OS/arch, and no `binaryTargets` list to keep in sync with every deploy target
 - **Remote migrations (optional, opt-in)** - If `RUN_MIGRATIONS=true` (and `PRISMA_SCHEMA` is set), runs `prisma migrate deploy` on the remote host after generate, before the app restarts
-- **PM2 service management via `pm2.config.cjs`, always on Bun** - Every deploy generates and ships a `pm2.config.cjs` (matching [Bun's official PM2 guide](https://bun.com/guides/ecosystem/pm2): `name`/`script`/`interpreter: "bun"`/`env.PATH`) and does `pm2 delete` + `pm2 start pm2.config.cjs`, so the app can never end up running under Node from a stale or manually-created PM2 process, and `bun` stays resolvable even if PM2 resurrects the process outside of a deploy (e.g. after a host reboot, if `pm2 startup` is configured)
+- **PM2 service management via `pm2.config.cjs`, always on Bun** - Every deploy generates a `pm2.config.cjs` (matching [Bun's official PM2 guide](https://bun.com/guides/ecosystem/pm2): `name`/`script`/`interpreter: "bun"`/`env.PATH`), bundles it into the same archive as everything else, and does `pm2 delete` + `pm2 start pm2.config.cjs`, so the app can never end up running under Node from a stale or manually-created PM2 process, and `bun` stays resolvable even if PM2 resurrects the process outside of a deploy (e.g. after a host reboot, if `pm2 startup` is configured)
 - **Cross-platform** - Works on Windows, macOS, and Linux with interactive shell support
 
 ## Architecture
@@ -23,8 +24,9 @@ deploy.ts (TypeScript)
 ├── Validates environment variables (including DEPLOY_PATH safety)
 ├── Builds locally (BUILD_COMMAND, skippable with --skip-build)
 ├── Cleans DEPLOY_PATH on remote, preserving .env
-├── Copies package.json + lockfile + dist/ (as a folder) via SCP
-├── Generates pm2.config.cjs locally and SCPs it to DEPLOY_PATH (fresh every deploy — cleanRemote wiped the previous one)
+├── Generates pm2.config.cjs into a throwaway staging dir (fresh every deploy — cleanRemote wiped the previous one)
+├── Archives package.json + lockfile + dist/or SOURCE_DIRS + pm2.config.cjs into one tar.gz
+├── Ships the tar.gz with one SCP, then extracts it on the remote host with `tar` and deletes it
 └── Executes SSH with interactive zsh shell: bun install, pm2 delete + start pm2.config.cjs, pm2 save
 ```
 
@@ -156,7 +158,7 @@ With `SOURCE_DIRS` set:
 - The local build step is skipped in effect — don't rely on `BUILD_COMMAND`; pass `--skip-build`
   in the npm script (e.g. `"deploy:dev": "... deploy.ts --env-file=.env.dev --skip-build"`), since
   source mode has nothing for a build step to produce.
-- `copyToRemote` ships each listed directory as-is (plus `package.json` + lockfile) instead of a
+- The archive step ships each listed directory as-is (plus `package.json` + lockfile) instead of a
   single `DIST_DIR`.
 - The default PM2 entry file becomes `src/index.ts` instead of `${DIST_DIR}/index.js` (override
   with `SERVER_FILE` if your entry point lives elsewhere).
@@ -208,14 +210,15 @@ DIST_DIR=dist/my-app/browser/          # Angular example
    - `mkdir -p` DEPLOY_PATH, then deletes everything directly under it except `.env`
    - Guarantees no file from a previous deploy (old `package.json`, old lockfile, orphaned build output) can leak into the new one
 
-4. **Copy Files** (SCP):
-   - Dist mode: copies `package.json`, a lockfile (`bun.lockb` / `bun.lock` / `package-lock.json`, first one found), and the `dist/` directory itself — so it lands as `DEPLOY_PATH/dist/...`, matching PM2's entry point
-   - Source mode (`SOURCE_DIRS` set): copies each listed directory as-is instead of `dist/`, plus `package.json` and a lockfile
-   - Static sites (`STATIC_SITE=true`): copies the *contents* of `DIST_DIR` directly into `DEPLOY_PATH`, since static assets are served from there directly
-
-5. **Generate & Copy `pm2.config.cjs`** (local write + SCP, non-static only):
-   - Written to a local throwaway temp file (`pm2.config.cjs.deploy-tmp`), SCP'd to `DEPLOY_PATH/pm2.config.cjs`, then the local temp file is deleted — happens on every deploy, since step 3 already wiped any previous copy on the remote
+4. **Generate `pm2.config.cjs`** (local write, non-static only):
+   - Written into a fresh, randomly-named staging subdirectory of the project dir (never the project dir itself, so it can be named exactly `pm2.config.cjs` without ever risking clobbering a real file a project might already have at that path) — happens on every deploy, since step 3 already wiped any previous copy on the remote
    - Content follows [Bun's PM2 guide](https://bun.com/guides/ecosystem/pm2): `name: APP_NAME`, `script: <entry file>`, `interpreter: "bun"`, and `env.PATH` set to a **remote-evaluated** template expression (`` `${process.env.HOME}/.bun/bin:${process.env.PATH}` ``, literally written into the file as JS source, not interpolated by `deploy.ts`) — so it resolves the *remote* user's own bun install location when PM2 (re)reads the config, not whatever machine ran the deploy. `env.PORT` is included too if `PORT` is set.
+
+5. **Archive, Copy, and Extract** (tar + SCP + SSH):
+   - Dist mode: archives `package.json`, a lockfile (`bun.lockb` / `bun.lock` / `package-lock.json`, first one found), the `dist/` directory itself (so it lands as `DEPLOY_PATH/dist/...`, matching PM2's entry point), and `pm2.config.cjs`
+   - Source mode (`SOURCE_DIRS` set): archives each listed directory as-is instead of `dist/`, plus `package.json`, a lockfile, and `pm2.config.cjs`
+   - Static sites (`STATIC_SITE=true`): archives the *contents* of `DIST_DIR` (no `pm2.config.cjs` - static sites skip PM2 entirely), so extraction lands them directly in `DEPLOY_PATH`
+   - The resulting tar.gz travels over a single `scp`, is extracted on the remote host with `tar -xzf ... -C DEPLOY_PATH`, and is then deleted on both ends. Extraction only *adds* files into the directory step 3 already cleaned down to just `.env` — it never deletes anything, so the remote `.env` always survives untouched
 
 6. **Remote Setup** (SSH with interactive zsh):
    - Uses `zsh -i -c` for proper shell environment (loads .zshrc/.bashrc)
@@ -228,6 +231,8 @@ DIST_DIR=dist/my-app/browser/          # Angular example
 
 - Node.js >= 14
 - Bun (for building locally and on remote)
+- `tar` available locally (for archiving) and on the remote host (for extraction) - ships by
+  default on macOS, Linux, and Windows 10 1803+
 - SSH and SCP configured for remote server access
 - PM2 installed on remote server: `npm install -g pm2`
 - ZSH shell available on remote server
@@ -249,9 +254,10 @@ bun scripts/deploy/deploy.ts --env-file=.env.dev
 # Deploying to dev-server:/var/www/app-name-dev
 # → bun run build
 # → ssh deploy@dev-server "mkdir -p '/var/www/app-name-dev' && cd '/var/www/app-name-dev' && find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +"
-# → scp -r dist package.json bun.lockb deploy@dev-server:/var/www/app-name-dev/
-# → scp "pm2.config.cjs.deploy-tmp" deploy@dev-server:'/var/www/app-name-dev/pm2.config.cjs'
-# → ssh deploy@dev-server "zsh -i -c 'cd '/var/www/app-name-dev' && bun install --production && ... && pm2 delete app-name-dev >/dev/null 2>&1 || true && pm2 start pm2.config.cjs --update-env && pm2 save'"
+# → tar -czf deploy-archive.tar.gz.deploy-tmp dist package.json bun.lockb -C .deploy-pm2-Ht8s2K pm2.config.cjs
+# → scp deploy-archive.tar.gz.deploy-tmp deploy@dev-server:/var/www/app-name-dev/deploy-archive.tar.gz.deploy-tmp
+# → ssh deploy@dev-server "tar -xzf '/var/www/app-name-dev/deploy-archive.tar.gz.deploy-tmp' -C '/var/www/app-name-dev' && rm '/var/www/app-name-dev/deploy-archive.tar.gz.deploy-tmp'"
+# → ssh deploy@dev-server "zsh -i -c 'cd '/var/www/app-name-dev' && bun install --production && ... && pm2 delete app-name-dev >/dev/null 2>&1 || true && pm2 start pm2.config.cjs && pm2 save'"
 # ✓ Deployment complete!
 ```
 
@@ -279,6 +285,13 @@ Building is now part of `deploy()` itself (via `BUILD_COMMAND`); pass `--skip-bu
 
 **Process doesn't come back after a host reboot**
 - `pm2 save` (which every deploy runs) only persists the process list to `~/.pm2/dump.pm2` — it does **not** make PM2 itself start on boot. That needs a one-time, separate, `sudo`-requiring step per host: `pm2 startup` (prints the exact command for your platform/init system; run the command it prints), which installs a launchd/systemd service that runs `pm2 resurrect` on boot. Check whether it's set up: on macOS, `ls ~/Library/LaunchAgents/ | grep pm2`; if nothing matches, it isn't.
+
+**`tar (child): Cannot connect to D: resolve failed`** (Windows only)
+- `tar`/`scp` both interpret an argument like `D:\Repos\project\file` as remote `host:path` syntax
+  (the colon after a drive letter looks exactly like `user@host:` shorthand) - the tool avoids this
+  internally by only ever passing relative paths to `tar`/`scp`, resolved via each call's `cwd`. If
+  you see this error, something is passing an absolute Windows path as a `tar`/`scp` argument
+  instead of relying on `cwd` - a regression to check for if you're modifying `deploy.ts` itself.
 
 **SCP permission denied / password prompt**
 - Ensure DEPLOY_USER has a dedicated SSH key trusted in its `~/.ssh/authorized_keys` on the remote host — don't reuse a personal login's key, and don't rely on password auth

@@ -2,8 +2,9 @@
 import { execFileSync, execSync } from "node:child_process";
 import {
   existsSync,
-  readdirSync,
+  mkdtempSync,
   readFileSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -32,8 +33,8 @@ const run = (command: string, cwd: string): void => {
 // (cmd.exe, unless the SHELL env var happens to point at a POSIX shell, as
 // Git Bash sets but PowerShell/cmd don't), and cmd.exe doesn't strip the
 // single quotes this file wraps remote paths in, corrupting them. Local
-// glob patterns (e.g. `dist/*`) also won't expand without a shell — see
-// the manual `readdirSync` expansion in `copyToRemote`.
+// glob patterns (e.g. `dist/*`) also won't expand without a shell — tar's
+// own `-C dir .` (see `archiveAndCopyToRemote`) sidesteps this entirely.
 const runArgv = (cmd: string, args: string[], cwd: string): void => {
   console.log(`→ ${cmd} ${args.join(" ")}`);
   // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
@@ -141,53 +142,135 @@ const cleanRemote = (env: DeployEnv): void => {
   );
 };
 
-const copyToRemote = (env: DeployEnv, projectDir: string): void => {
+// True when `member` (a project-relative path) is already inside one of
+// `dirs` (also project-relative), so callers don't ship it a second time.
+const isInsideAnyDir = (member: string, dirs: string[]): boolean =>
+  dirs.some((dir) => {
+    const rel = path.relative(dir, member);
+    return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+  });
+
+// Resolves what to ship for a non-static deploy: either the listed source
+// directories (source mode) or the single built DIST_DIR, plus package.json,
+// a lockfile, and SERVER_FILE if it lives outside all of those already (e.g.
+// a standalone entry file at the project root, not inside dist/ or src/).
+const resolveAppMembers = (env: DeployEnv, projectDir: string): string[] => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
-  const isStaticSite = env.STATIC_SITE === "true";
-  const destination = `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/`;
-
-  log("Copying files to remote server...");
-
-  if (isStaticSite) {
-    // Static assets are served directly from DEPLOY_PATH, so copy the
-    // *contents* of the dist dir rather than the dist dir itself. Expand
-    // the glob ourselves — execFileSync doesn't invoke a shell, so `dist/*`
-    // would otherwise reach scp as a literal, non-matching path.
-    const entries = readdirSync(path.join(projectDir, distDir)).map((entry) =>
-      path.join(distDir, entry),
-    );
-    runArgv("scp", ["-r", ...entries, destination], projectDir);
-    return;
-  }
-
-  // Source mode: ship the listed project-relative directories as-is instead
-  // of a single pre-built DIST_DIR, so Bun runs the TypeScript source
-  // directly on the remote host (no local bundle to go stale or embed the
-  // build machine's own paths into anything, e.g. Prisma's generated client).
   const sourceDirs = env.SOURCE_DIRS
     ? env.SOURCE_DIRS.split(",")
         .map((d) => d.trim())
         .filter(Boolean)
     : null;
+  const dirs = sourceDirs ?? [distDir];
 
-  // For app deployments, copy either the source directories or the dist
-  // directory itself (preserving the folder) plus package.json and a
-  // lockfile, so PM2's entry file path and `bun install` both resolve
-  // correctly on the remote side.
-  const sources = [...(sourceDirs ?? [distDir]), "package.json"];
+  const members = [...dirs, "package.json"];
 
   const lockfile = findLocalLockfile(projectDir);
-  if (lockfile) sources.push(lockfile);
+  if (lockfile) members.push(lockfile);
   else
     log(
       "⚠ No lockfile found locally (bun.lockb / bun.lock / package-lock.json) — skipping",
     );
 
-  if (env.SERVER_FILE && existsSync(path.join(projectDir, env.SERVER_FILE))) {
-    sources.push(env.SERVER_FILE);
+  if (
+    env.SERVER_FILE &&
+    existsSync(path.join(projectDir, env.SERVER_FILE)) &&
+    !isInsideAnyDir(env.SERVER_FILE, dirs)
+  ) {
+    members.push(env.SERVER_FILE);
   }
 
-  runArgv("scp", ["-r", ...sources, destination], projectDir);
+  return members;
+};
+
+const ARCHIVE_FILE_NAME = "deploy-archive.tar.gz.deploy-tmp";
+
+// Ships everything in one tar.gz over one scp connection instead of a
+// separate transfer per top-level item - meaningfully faster than plain scp
+// once a directory holds more than a handful of files (each file is its own
+// round-trip under scp -r), and it's what every deploy target already has:
+// tar ships with macOS/Linux, and modern Windows for local archive creation.
+//
+// Every path handed to `tar`/`scp` here is relative, with `cwd` doing the
+// resolution (via execFileSync's option, a plain Node chdir - not a tar/scp
+// argument). Windows' tar/scp both misparse an absolute "D:\..." argument as
+// remote "host:path" syntax (the colon after a drive letter looks exactly
+// like scp's user@host: convention), so this file can never pass one of
+// those tools an absolute local path as an argv element - only cwd.
+//
+// Safety: cleanRemote() already wiped DEPLOY_PATH down to just `.env` before
+// this runs, and extraction only ever *adds* files - it never deletes what's
+// already there. So as long as `.env` never ends up as a tar member (it
+// isn't one of DIST_DIR/SOURCE_DIRS/package.json/lockfile/pm2.config.cjs in
+// any normal project layout), the remote `.env` bootstrapped once per
+// deploy target survives every redeploy untouched.
+const archiveAndCopyToRemote = (
+  env: DeployEnv,
+  projectDir: string,
+  pm2ConfigDir: string | null,
+): void => {
+  const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
+  const isStaticSite = env.STATIC_SITE === "true";
+  // Static sites archive from inside distDir itself (see below); everything
+  // else archives from projectDir.
+  const archiveCwd = isStaticSite ? path.join(projectDir, distDir) : projectDir;
+
+  log("Archiving files for transfer...");
+
+  if (isStaticSite) {
+    // Static assets are served directly from DEPLOY_PATH, so archive the
+    // *contents* of the dist dir rather than the dist dir itself - cwd is
+    // already distDir, so "." captures exactly that.
+    runArgv("tar", ["-czf", ARCHIVE_FILE_NAME, "."], archiveCwd);
+  } else {
+    const tarArgs = [
+      "-czf",
+      ARCHIVE_FILE_NAME,
+      ...resolveAppMembers(env, projectDir),
+    ];
+    // pm2.config.cjs is generated fresh into its own throwaway staging
+    // subdirectory of projectDir (see stagePm2Config), so it can be named
+    // exactly "pm2.config.cjs" here without ever risking clobbering a real
+    // file a project might already have at that path. A second `-C` mid-argv
+    // is standard tar behavior (GNU and macOS/BSD tar both support it):
+    // later members resolve against the most recent `-C` seen so far - given
+    // relative to projectDir here (same reasoning as above re: no absolute
+    // paths), not to the tar process's original cwd.
+    if (pm2ConfigDir) {
+      tarArgs.push(
+        "-C",
+        path.relative(projectDir, pm2ConfigDir),
+        "pm2.config.cjs",
+      );
+    }
+    runArgv("tar", tarArgs, archiveCwd);
+  }
+
+  const localArchivePath = path.join(archiveCwd, ARCHIVE_FILE_NAME);
+  const remoteArchivePath = `${env.DEPLOY_PATH}/${ARCHIVE_FILE_NAME}`;
+  try {
+    log("Copying archive to remote server...");
+    runArgv(
+      "scp",
+      [
+        ARCHIVE_FILE_NAME,
+        `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${remoteArchivePath}`,
+      ],
+      archiveCwd,
+    );
+  } finally {
+    unlinkSync(localArchivePath);
+  }
+
+  log("Extracting archive on remote server...");
+  runArgv(
+    "ssh",
+    [
+      `${env.DEPLOY_USER}@${env.DEPLOY_HOST}`,
+      `tar -xzf '${remoteArchivePath}' -C '${env.DEPLOY_PATH}' && rm '${remoteArchivePath}'`,
+    ],
+    projectDir,
+  );
 };
 
 // Follows Bun's official PM2 guide (https://bun.com/guides/ecosystem/pm2):
@@ -231,43 +314,32 @@ const generatePm2ConfigContent = (
   ].join("\n");
 };
 
-// Writes pm2.config.cjs to a local throwaway temp file, scps it to the
-// remote deploy path (as `pm2.config.cjs`, regardless of the local temp
-// file's own name), then deletes the local copy. Must run after cleanRemote
-// (which wipes DEPLOY_PATH down to `.env`) and needs to happen on every
-// deploy, not just once, since that clean step would otherwise delete it.
-const copyPm2Config = (
+// Writes pm2.config.cjs into a fresh, randomly-named staging subdirectory of
+// projectDir (never projectDir itself, so the file can be named exactly
+// "pm2.config.cjs" without ever risking clobbering a real file a project
+// might already have at that path). Created inside projectDir rather than
+// the OS temp dir specifically so archiveAndCopyToRemote() can reference it
+// with a path relative to projectDir - see the note there on why this file
+// never hands tar/scp an absolute local path. Regenerated on every deploy
+// (not just once), since cleanRemote() wipes DEPLOY_PATH down to `.env` first.
+const stagePm2Config = (
+  projectDir: string,
   env: DeployEnv,
   appName: string,
   entryFile: string,
-  projectDir: string,
-): void => {
-  const tmpPath = path.join(projectDir, "pm2.config.cjs.deploy-tmp");
-  writeFileSync(tmpPath, generatePm2ConfigContent(appName, entryFile, env));
-  try {
-    runArgv(
-      "scp",
-      [
-        tmpPath,
-        `${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_PATH}/pm2.config.cjs`,
-      ],
-      projectDir,
-    );
-  } finally {
-    unlinkSync(tmpPath);
-  }
+): string => {
+  const stagingDir = mkdtempSync(path.join(projectDir, ".deploy-pm2-"));
+  writeFileSync(
+    path.join(stagingDir, "pm2.config.cjs"),
+    generatePm2ConfigContent(appName, entryFile, env),
+  );
+  return stagingDir;
 };
 
 const restartRemote = (env: DeployEnv, projectDir: string): void => {
-  const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
-  const isSourceMode = !!env.SOURCE_DIRS;
-  const entryFile =
-    env.SERVER_FILE || (isSourceMode ? "src/index.ts" : `${distDir}/index.js`);
   // Non-null: restartRemote only runs for non-static-site deploys, and
   // validate() already requires APP_NAME in that case.
   const appName = env.APP_NAME as string;
-
-  copyPm2Config(env, appName, entryFile, projectDir);
 
   const steps = [`cd '${env.DEPLOY_PATH}'`, "bun install --production"];
 
@@ -317,9 +389,14 @@ export const deploy = (config: DeployConfig = {}): void => {
   validate(env);
 
   const isStaticSite = env.STATIC_SITE === "true";
+  const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
+  const isSourceMode = !!env.SOURCE_DIRS;
+  const entryFile =
+    env.SERVER_FILE || (isSourceMode ? "src/index.ts" : `${distDir}/index.js`);
 
   console.log(`\nDeploying to ${env.DEPLOY_HOST}:${env.DEPLOY_PATH}\n`);
 
+  let pm2ConfigDir: string | null = null;
   try {
     if (!config.skipBuild) {
       buildLocal(env, projectDir);
@@ -328,7 +405,17 @@ export const deploy = (config: DeployConfig = {}): void => {
     }
 
     cleanRemote(env);
-    copyToRemote(env, projectDir);
+
+    if (!isStaticSite) {
+      // Non-null: validate() already requires APP_NAME for non-static sites.
+      pm2ConfigDir = stagePm2Config(
+        projectDir,
+        env,
+        env.APP_NAME as string,
+        entryFile,
+      );
+    }
+    archiveAndCopyToRemote(env, projectDir, pm2ConfigDir);
 
     if (!isStaticSite) {
       restartRemote(env, projectDir);
@@ -341,6 +428,8 @@ export const deploy = (config: DeployConfig = {}): void => {
     const message = error instanceof Error ? error.message : String(error);
     log(`✗ Deployment failed: ${message}`);
     process.exit(1);
+  } finally {
+    if (pm2ConfigDir) rmSync(pm2ConfigDir, { recursive: true, force: true });
   }
 };
 
