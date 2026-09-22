@@ -99,19 +99,19 @@ const token = await generateToken({ userId: "u1", role: "ADMIN" }, secret);
 
 Utility scripts for common development tasks. All scripts are TypeScript-based and located in `scripts/[name]/`.
 
-Add scripts to your project's `package.json`:
+Add the ones you'll actually run day-to-day (or as part of a release) to your project's `package.json`:
 
 ```json
 {
   "scripts": {
     "clean": "bun node_modules/@tertium/js/scripts/clean/clean.ts",
     "improve:scripts": "bun node_modules/@tertium/js/scripts/improve-start-scripts/improve-start-scripts.ts",
+    "changelog": "bun node_modules/@tertium/js/scripts/changelog/changelog.ts --dry-run",
+    "version": "bun node_modules/@tertium/js/scripts/changelog/changelog.ts && git add CHANGELOG.md",
     "release:patch": "bun node_modules/@tertium/js/scripts/release/release.ts patch",
     "release:minor": "bun node_modules/@tertium/js/scripts/release/release.ts minor",
     "release:major": "bun node_modules/@tertium/js/scripts/release/release.ts major",
-    "deploy": "bun node_modules/@tertium/js/scripts/deploy/deploy.ts",
-    "workflow:publish": "bun node_modules/@tertium/js/scripts/npm-publish-workflow/npm-publish-workflow.ts",
-    "hooks:install": "bun node_modules/@tertium/js/scripts/git-hooks/git-hooks.ts"
+    "deploy": "bun node_modules/@tertium/js/scripts/deploy/deploy.ts"
   }
 }
 ```
@@ -120,9 +120,11 @@ Add scripts to your project's `package.json`:
 
 Removes build and distribution directories cross-platform.
 
+Not used by this package itself (no `build`/`dist` step here) - add a `"clean"` script in a project that has one, or invoke directly:
+
 ```bash
-bun run clean                    # Remove ./dist
-bun run clean -- dist build     # Remove multiple directories
+bun scripts/clean/clean.ts             # Remove ./dist
+bun scripts/clean/clean.ts dist build  # Remove multiple directories
 ```
 
 **See:** [scripts/clean/clean.md](scripts/clean/clean.md)
@@ -241,11 +243,13 @@ touches the network itself, so a connectivity issue can't block starting the app
 fetches a deploy-target config fresh from AWS, uses it for one deploy, and deletes it right after -
 `.env.dev`/`.env.prod` never need to sit on your laptop at all.
 
+Not used by this package itself (no deployed `.env` here) - add `"env:*"` scripts in a project that has one, or invoke directly:
+
 ```bash
-bun run env:push                # Upload .env after editing it
-bun run env:push -- --env-file=.env.dev
-bun run env:sync -- --env-file=.env.dev   # Refresh local cache; falls back to existing file if offline
-bun run env:pull -- --env-file=.env.dev   # Force-fetch, fails loudly if AWS is unreachable
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts push                       # Upload .env after editing it
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts push --env-file=.env.dev
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts sync --env-file=.env.dev   # Refresh local cache; falls back to existing file if offline
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts pull --env-file=.env.dev   # Force-fetch, fails loudly if AWS is unreachable
 bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts run -- bun run dev
 bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts deploy --env-file=.env.prod --skip-build
 ```
@@ -259,9 +263,11 @@ Generates `.github/workflows/publish.yml`, which publishes the package to npm vi
 no `NPM_TOKEN` secret required. Detects the package manager from the lockfile and only wires up
 the `lint`/`build`/`test` steps that actually exist in `package.json`.
 
+One-time setup, not a script you run regularly - invoke directly rather than aliasing it in `package.json`:
+
 ```bash
-bun run workflow:publish            # Generate .github/workflows/publish.yml
-bun run workflow:publish -- --force # Overwrite an existing workflow file
+bun scripts/npm-publish-workflow/npm-publish-workflow.ts            # Generate .github/workflows/publish.yml
+bun scripts/npm-publish-workflow/npm-publish-workflow.ts -- --force # Overwrite an existing workflow file
 ```
 
 **See:** [scripts/npm-publish-workflow/npm-publish-workflow.md](scripts/npm-publish-workflow/npm-publish-workflow.md)
@@ -273,9 +279,11 @@ Generates a version-controlled `.githooks/pre-commit` hook (lint/typecheck/test)
 `prepare` script so every contributor's next install re-wires the hook path automatically,
 since `.githooks/` is tracked in git unlike `.git/hooks/`.
 
+One-time setup, not a script you run regularly - invoke directly rather than aliasing it in `package.json`:
+
 ```bash
-bun run hooks:install            # Generate .githooks/pre-commit and wire it up
-bun run hooks:install -- --force # Overwrite an existing hook file
+bun scripts/git-hooks/git-hooks.ts            # Generate .githooks/pre-commit and wire it up
+bun scripts/git-hooks/git-hooks.ts -- --force # Overwrite an existing hook file
 ```
 
 **See:** [scripts/git-hooks/git-hooks.md](scripts/git-hooks/git-hooks.md)

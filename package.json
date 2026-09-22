@@ -20,23 +20,15 @@
     "libs/"
   ],
   "scripts": {
-    "clean": "bun scripts/clean/clean.ts",
-    "env:push": "bun scripts/aws-env/aws-env.ts push",
-    "env:pull": "bun scripts/aws-env/aws-env.ts pull",
-    "env:sync": "bun scripts/aws-env/aws-env.ts sync",
-    "env:deploy": "bun scripts/aws-env/aws-env.ts deploy",
     "changelog": "bun scripts/changelog/changelog.ts --dry-run",
     "version": "bun scripts/changelog/changelog.ts && git add CHANGELOG.md",
     "release:patch": "bun scripts/release/release.ts patch",
     "release:minor": "bun scripts/release/release.ts minor",
     "release:major": "bun scripts/release/release.ts major",
-    "workflow:publish": "bun scripts/npm-publish-workflow/npm-publish-workflow.ts",
-    "hooks:install": "bun scripts/git-hooks/git-hooks.ts",
     "test": "bun test --no-coverage || echo 'No tests found'",
     "lint": "biome check scripts core entities libs",
     "lint:fix": "biome check --write scripts core entities libs",
     "typecheck": "tsc --noEmit",
-    "format": "biome format scripts core entities libs",
     "prepare": "git config core.hooksPath .githooks"
   },
   "author": "Vitalii Balabanov",
