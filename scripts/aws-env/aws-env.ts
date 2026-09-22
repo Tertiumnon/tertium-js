@@ -3,13 +3,8 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { deploy as runDeploy } from "../deploy/deploy";
+import { ENV_FILE_SUGGESTIONS, SYNC_HEADER_PREFIX } from "./aws-env.constants";
 import type { AwsEnvConfig } from "./aws-env.types";
-
-const ENV_FILE_SUGGESTIONS = [".env", ".env.dev", ".env.prod", ".env.staging"];
-
-// Marks a local env file as written by `sync` rather than hand-edited, so `push` can
-// warn before re-uploading a synced copy (with its header) back over the real source.
-const SYNC_HEADER_PREFIX = "# auto-synced from AWS SSM";
 
 const log = (message: string): void => {
   console.log(`[${new Date().toISOString()}] ${message}`);

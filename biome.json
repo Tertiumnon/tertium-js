@@ -13,7 +13,7 @@
     }
   },
   "files": {
-    "includes": ["scripts/**", "core/**", "entities/**"],
+    "includes": ["scripts/**", "core/**", "entities/**", "libs/**"],
     "ignoreUnknown": true
   }
 }

@@ -4,6 +4,17 @@
 
 A reusable TypeScript library providing shared core utilities, entity models, and release automation scripts for JavaScript projects. Includes abstractions for APIs, authentication, filtering, logging, repositories, and domain entities (users, posts, comments).
 
+## Why this package exists
+
+Across the author's JS/TS projects, the same small pieces of logic — password hashing, API response shapes, repository patterns, release/deploy scripts — kept getting hand-copied from one repo to the next, drifting apart with every copy. `@tertium/js` exists to break that cycle: it's the one place a genuinely repeatable function, type, or script gets written, so every consuming project imports it instead of reimplementing it.
+
+That gives a concrete test for what belongs here versus what stays local to a project:
+
+- **Belongs here**: logic that is project-agnostic — it would look the same in any app that needed it, with no dependency on one project's domain model, routes, or business rules (e.g. `hashPassword`/`verifyPassword`, the `Repo` base class, `ApiResponse` shapes, the release/deploy scripts).
+- **Stays local**: anything wired to a specific app's routes, schema, or product decisions (e.g. an endpoint's request/response handling, a project's own auth middleware, domain-specific validation) — even if the *pattern* was copied from another project, the wiring itself isn't universal.
+
+Because modules are consumed via subpath imports straight from source (no bundling — see below), a module can bring in its own runtime dependency without forcing it on projects that only import a different, dependency-free module. `core/*` and `entities/*` stay limited to `node:*` builtins for exactly this reason; anything that genuinely needs an external package lives under `libs/*` instead, with that package declared as an optional `peerDependency` the consumer installs themselves — never as a blanket dependency of the whole package.
+
 ## Table of contents
 
 - Installation
@@ -12,6 +23,7 @@ A reusable TypeScript library providing shared core utilities, entity models, an
   - Scripts
     - Clean
     - Release
+    - Changelog
     - Improve Start Scripts
     - Deploy
     - AWS Env
@@ -38,8 +50,8 @@ This package exposes subpath imports organized by domain. Import the specific mo
 
 Core modules provide foundational abstractions and utilities:
 
-- **API & HTTP**: `api`, `api-request`, `api-response` — Types and utilities for API communication
-- **Authentication**: `auth` — Auth helpers and utilities
+- **REST API**: `api-rest` — CRUD request/response types (`ApiRequestFindManyParams`, `ApiResponse<T>`, etc.); a future `api-graphql` would live alongside it for GraphQL-specific shapes rather than sharing a protocol-agnostic `api` module
+- **Authentication**: `auth` — `hashPassword`/`verifyPassword` (scrypt, `node:crypto`); no external dependency
 - **Data management**: `entity`, `entity-ref`, `repo` — Base classes and types for entity management and repository patterns
 - **Filtering & forms**: `filter`, `form` — Types for filtering and form handling
 - **Logging**: `log` — Logging service and types
@@ -48,8 +60,8 @@ Core modules provide foundational abstractions and utilities:
 Example:
 
 ```typescript
-import { Repo } from "@tertium/js/core/repo";
-import type { ApiResponse } from "@tertium/js/core/api-response";
+import { Repo } from "@tertium/js/core/repo/repo.class";
+import type { ApiResponse } from "@tertium/js/core/api-rest/api-rest.types";
 import { LogService } from "@tertium/js/core/log";
 ```
 
@@ -66,6 +78,21 @@ Example:
 ```typescript
 import { Post } from "@tertium/js/entities/post";
 import { User } from "@tertium/js/entities/user";
+```
+
+#### Libraries (`./libs/*`)
+
+Unlike `core/*`, a library under `libs/*` is allowed to carry its own runtime dependency — declared as an optional `peerDependency` of this package, so only projects that actually import that library need to install it. Each one still lives at its own subpath, so importing one library never pulls in another's dependency.
+
+- **JWT**: `jwt` — `generateToken`/`verifyToken`/`verifyAuthHeader`, built on [jose](https://github.com/panva/jose) (a `peerDependency` — install it yourself to use this). Payload shape and signing key/algorithm are caller-supplied, so the same functions cover an HS256 shared secret or an RS256/ES256 key pair; `verifyToken`/`verifyAuthHeader` forward jose's own claim-verification options (`issuer`, `audience`, `subject`, `clockTolerance`, `maxTokenAge`, `requiredClaims`, `algorithms`) instead of reimplementing them. `resolveJwtSecret` is a `process.env`-based convenience for the common shared-secret case — **no dev-only fallback**: a missing secret throws in every environment, since a silently-generated default is a worse failure mode than a startup crash. Node/Bun/Deno-style runtimes only; the rest of the module is plain jose/Web Crypto and runs anywhere JS does.
+
+Example:
+
+```typescript
+import { generateToken, verifyAuthHeader, resolveJwtSecret } from "@tertium/js/libs/jwt/jwt.utils.ts";
+
+const secret = resolveJwtSecret(); // throws if JWT_SECRET is unset
+const token = await generateToken({ userId: "u1", role: "ADMIN" }, secret);
 ```
 
 ## Scripts
@@ -114,6 +141,16 @@ bun run release:major
 ```
 
 **See:** [scripts/release/release.md](scripts/release/release.md)
+
+### Changelog
+
+Generates a `CHANGELOG.md` entry from git history automatically - wired as npm's own `version` lifecycle script, so it runs on every `npm version <type>` (including via `release`, above) with no manual writing.
+
+```bash
+bun run changelog   # preview the entry for the current version without writing anything
+```
+
+**See:** [scripts/changelog/changelog.md](scripts/changelog/changelog.md)
 
 ### Improve Start Scripts
 

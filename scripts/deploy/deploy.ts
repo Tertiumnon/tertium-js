@@ -9,9 +9,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import * as path from "node:path";
+import { ARCHIVE_FILE_NAME, LOCKFILE_CANDIDATES } from "./deploy.constants";
 import type { DeployConfig, DeployEnv } from "./deploy.types";
-
-const LOCKFILE_CANDIDATES = ["bun.lockb", "bun.lock", "package-lock.json"];
 
 const log = (message: string): void => {
   console.log(`[${new Date().toISOString()}] ${message}`);
@@ -182,8 +181,6 @@ const resolveAppMembers = (env: DeployEnv, projectDir: string): string[] => {
 
   return members;
 };
-
-const ARCHIVE_FILE_NAME = "deploy-archive.tar.gz.deploy-tmp";
 
 // Ships everything in one tar.gz over one scp connection instead of a
 // separate transfer per top-level item - meaningfully faster than plain scp

@@ -1,10 +1,10 @@
-import type { ApiResponse } from "../api-request/api-request.types";
+import type { ApiResponse } from "../api-rest/api-rest.types";
 import type { Filter } from "../filter/filter.types";
 
 /**
  * Base class for a generic repository using common patterns.
  */
-export abstract class Repository<T, EntityId, CreateDto, UpdateDto> {
+export abstract class Repo<T, EntityId, CreateDto, UpdateDto> {
   abstract search(filters?: Filter<unknown>[]): Promise<ApiResponse<T[]>>; // Search resources with optional filters
   abstract getOne(id: EntityId): Promise<ApiResponse<T>>; // Retrieve a single resource by ID
   abstract getMany(ids: EntityId[]): Promise<ApiResponse<T[]>>; // Retrieve multiple resources by IDs

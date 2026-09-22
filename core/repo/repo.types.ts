@@ -1,4 +1,4 @@
-import type { ApiResponse } from "../api-request/api-request.types";
+import type { ApiResponse } from "../api-rest/api-rest.types";
 import type { Filter } from "../filter/filter.types";
 
 /**

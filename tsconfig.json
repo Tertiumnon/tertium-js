@@ -17,6 +17,6 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true
   },
-  "include": ["scripts/**/*.ts", "core/**/*.ts", "entities/**/*.ts"],
+  "include": ["scripts/**/*.ts", "core/**/*.ts", "entities/**/*.ts", "libs/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

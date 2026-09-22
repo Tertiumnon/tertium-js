@@ -1,31 +1,8 @@
 import type { Filter } from "../filter/filter.types";
 
 /**
- * Common API request types for CRUD operations.
+ * Common REST API request/response types for CRUD operations.
  * These types can be extended or customized for specific use cases.
- */
-
-/**
- * Request for finding multiple resources (GET /resources)
- * @example
- * const params: ApiRequestFindMany = {
- *   filter: { name: 'Alice' },
- *   sort: 'createdAt',
- *   page: 1,
- *   pageSize: 20
- * };
- */
-/**
- * Request for finding multiple resources with common filtering, searching, and pagination options.
- *
- * @example
- * const params: ApiRequestFindMany<UserFilter> = {
- *   search: 'alice',
- *   filter: { isActive: true },
- *   sort: '-createdAt',
- *   page: 1,
- *   pageSize: 20
- * };
  */
 
 /**
@@ -74,3 +51,39 @@ export interface ApiResponse<T> {
   filters?: Record<string, unknown>[]; // Support for multiple filters
   message?: string;
 }
+
+/**
+ * Interface for API response when finding multiple resources.
+ */
+export interface ApiResponseFindMany<T> {
+  data: T[]; // Array of resources
+  total: number; // Total number of resources
+  page: number; // Current page number
+  pageSize: number; // Number of items per page
+}
+
+/**
+ * Interface for API response when finding a single resource.
+ */
+export interface ApiResponseGetOne<T> {
+  data: T; // The resource
+}
+
+/**
+ * Interface for API response when creating a resource.
+ */
+export interface ApiResponseCreate<T> {
+  data: T; // The created resource
+}
+
+/**
+ * Interface for API response when updating a resource.
+ */
+export interface ApiResponseUpdate<T> {
+  data: T; // The updated resource
+}
+
+/**
+ * Interface for API response when deleting a resource.
+ */
+export type ApiResponseDelete = null;
