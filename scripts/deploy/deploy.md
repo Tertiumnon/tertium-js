@@ -306,3 +306,11 @@ Building is now part of `deploy()` itself (via `BUILD_COMMAND`); pass `--skip-bu
 - Generate one: `ssh-keygen -t ed25519 -f ~/.ssh/<name> -C "<deploy-user>@<host>" -N ""`, append the `.pub` to the remote user's `authorized_keys`, then add a matching `Host` entry to your local `~/.ssh/config` (or an extra `IdentityFile` line on an existing entry for that host)
 - Test with: `ssh -o BatchMode=yes user@host whoami` — it must succeed with no prompt
 - Ensure DEPLOY_USER has write permissions to DEPLOY_PATH (or can `mkdir -p` it)
+
+## Future Work
+
+- [ ] Add automated archive integration tests for static, dist, and source deployments across Windows, macOS, and Linux.
+- [ ] Validate expected artifact contents before upload, including a static site's `index.html` and the configured server entry file.
+- [ ] Add atomic remote releases and rollback so extraction or restart failures cannot leave the active deployment incomplete.
+- [ ] Add optional web-server configuration support for static sites, including SPA history-route fallback; deployments currently assume the server is configured separately.
+- [ ] Define and add explicit adapters for selected SSR frameworks rather than assuming their output formats are interchangeable.
