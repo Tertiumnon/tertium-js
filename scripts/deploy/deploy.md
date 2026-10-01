@@ -23,10 +23,10 @@ deploy.ts (TypeScript)
 ├── Loads .env file
 ├── Validates environment variables (including DEPLOY_PATH safety)
 ├── Builds locally (BUILD_COMMAND, skippable with --skip-build)
-├── Cleans DEPLOY_PATH on remote, preserving .env
-├── Generates pm2.config.cjs into a throwaway staging dir (fresh every deploy — cleanRemote wiped the previous one)
-├── Archives package.json + lockfile + dist/or SOURCE_DIRS + pm2.config.cjs into one tar.gz
-├── Ships the tar.gz with one SCP, then extracts it on the remote host with `tar` and deletes it
+├── Generates pm2.config.cjs into a fresh throwaway staging dir
+├── Validates local archive inputs and creates one tar.gz
+├── Uploads the archive, then cleans DEPLOY_PATH while preserving .env and the uploaded archive
+├── Extracts the archive on the remote host with `tar` and deletes it
 └── Executes SSH with interactive zsh shell: bun install, pm2 delete + start pm2.config.cjs, pm2 save
 ```
 
@@ -206,21 +206,18 @@ DIST_DIR=dist/my-app/browser/          # Angular example
 2. **Build** (unless `--skip-build`, or ignored in source mode):
    - Runs `BUILD_COMMAND` (default `bun run build`) locally
 
-3. **Clean Remote** (SSH):
-   - `mkdir -p` DEPLOY_PATH, then deletes everything directly under it except `.env`
-   - Guarantees no file from a previous deploy (old `package.json`, old lockfile, orphaned build output) can leak into the new one
-
-4. **Generate `pm2.config.cjs`** (local write, non-static only):
-   - Written into a fresh, randomly-named staging subdirectory of the project dir (never the project dir itself, so it can be named exactly `pm2.config.cjs` without ever risking clobbering a real file a project might already have at that path) — happens on every deploy, since step 3 already wiped any previous copy on the remote
+3. **Generate `pm2.config.cjs`** (local write, non-static only):
+  - Written into a fresh, randomly-named staging subdirectory of the project dir (never the project dir itself, so it can be named exactly `pm2.config.cjs` without ever risking clobbering a real file a project might already have at that path)
    - Content follows [Bun's PM2 guide](https://bun.com/guides/ecosystem/pm2): `name: APP_NAME`, `script: <entry file>`, `interpreter: "bun"`, and `env.PATH` set to a **remote-evaluated** template expression (`` `${process.env.HOME}/.bun/bin:${process.env.PATH}` ``, literally written into the file as JS source, not interpolated by `deploy.ts`) — so it resolves the *remote* user's own bun install location when PM2 (re)reads the config, not whatever machine ran the deploy. `env.PORT` is included too if `PORT` is set.
 
-5. **Archive, Copy, and Extract** (tar + SCP + SSH):
+4. **Validate, Archive, Copy, and Extract** (tar + SCP + SSH):
+  - Checks every required local archive input before contacting the remote host, so a missing build output fails clearly without affecting the current deployment
    - Dist mode: archives `package.json`, a lockfile (`bun.lockb` / `bun.lock` / `package-lock.json`, first one found), the `dist/` directory itself (so it lands as `DEPLOY_PATH/dist/...`, matching PM2's entry point), and `pm2.config.cjs`
    - Source mode (`SOURCE_DIRS` set): archives each listed directory as-is instead of `dist/`, plus `package.json`, a lockfile, and `pm2.config.cjs`
    - Static sites (`STATIC_SITE=true`): archives the *contents* of `DIST_DIR` (no `pm2.config.cjs` - static sites skip PM2 entirely), so extraction lands them directly in `DEPLOY_PATH`
-   - The resulting tar.gz travels over a single `scp`, is extracted on the remote host with `tar -xzf ... -C DEPLOY_PATH`, and is then deleted on both ends. Extraction only *adds* files into the directory step 3 already cleaned down to just `.env` — it never deletes anything, so the remote `.env` always survives untouched
+    - Creates the archive locally, uploads it, then removes stale remote files while preserving `.env` and the uploaded archive. It extracts the archive with `tar -xzf ... -C DEPLOY_PATH` and deletes it on both ends. This keeps the current deployment intact if local archiving or upload fails
 
-6. **Remote Setup** (SSH with interactive zsh):
+5. **Remote Setup** (SSH with interactive zsh):
    - Uses `zsh -i -c` for proper shell environment (loads .zshrc/.bashrc)
    - Runs `bun install --production`
    - If `PRISMA_SCHEMA` is set: generates the Prisma Client against it on the remote host (native engine matches that host automatically), then optionally `prisma migrate deploy` if `RUN_MIGRATIONS=true`

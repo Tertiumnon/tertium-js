@@ -123,20 +123,31 @@ const buildLocal = (env: DeployEnv, projectDir: string): void => {
   run(buildCommand, projectDir);
 };
 
-// Remove everything under DEPLOY_PATH except .env, so stale files (old
-// package.json, mismatched lockfiles, old builds) can never linger between
-// deployments. Creates DEPLOY_PATH first in case this is the first deploy.
+// Remove everything under DEPLOY_PATH except .env and the uploaded archive,
+// so a failed local build or transfer cannot wipe the current deployment.
 const cleanRemote = (env: DeployEnv): void => {
-  log(`Cleaning remote directory (preserving .env): ${env.DEPLOY_PATH}`);
+  log(
+    `Cleaning remote directory (preserving .env and uploaded archive): ${env.DEPLOY_PATH}`,
+  );
   // The single quotes here are for the REMOTE shell (whatever runs this
   // string on DEPLOY_HOST when ssh forwards it) — unaffected by the local
   // OS/shell, since the whole string is one argv element passed to ssh.
   const remoteCmd =
     `mkdir -p '${env.DEPLOY_PATH}' && cd '${env.DEPLOY_PATH}' && ` +
-    `find . -mindepth 1 -maxdepth 1 ! -name '.env' -exec rm -rf {} +`;
+    `find . -mindepth 1 -maxdepth 1 ! -name '.env' ` +
+    `! -name '${ARCHIVE_FILE_NAME}' -exec rm -rf {} +`;
   runArgv(
     "ssh",
     [`${env.DEPLOY_USER}@${env.DEPLOY_HOST}`, remoteCmd],
+    process.cwd(),
+  );
+};
+
+const ensureRemoteDirectory = (env: DeployEnv): void => {
+  log(`Preparing remote directory: ${env.DEPLOY_PATH}`);
+  runArgv(
+    "ssh",
+    [`${env.DEPLOY_USER}@${env.DEPLOY_HOST}`, `mkdir -p '${env.DEPLOY_PATH}'`],
     process.cwd(),
   );
 };
@@ -182,6 +193,40 @@ const resolveAppMembers = (env: DeployEnv, projectDir: string): string[] => {
   return members;
 };
 
+const validateArchiveInputs = (
+  env: DeployEnv,
+  projectDir: string,
+  pm2ConfigDir: string | null,
+  entryFile: string,
+): void => {
+  const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
+  const members =
+    env.STATIC_SITE === "true"
+      ? [distDir]
+      : [
+          ...resolveAppMembers(env, projectDir),
+          entryFile,
+          ...(pm2ConfigDir
+            ? [
+                path.join(
+                  path.relative(projectDir, pm2ConfigDir),
+                  "pm2.config.cjs",
+                ),
+              ]
+            : []),
+        ];
+  const missing = [...new Set(members)].filter(
+    (member) => !existsSync(path.resolve(projectDir, member)),
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing local deploy input(s): ${missing.join(", ")}. Build before deploying, ` +
+        "or use --skip-build only when the required build output already exists.",
+    );
+  }
+};
+
 // Ships everything in one tar.gz over one scp connection instead of a
 // separate transfer per top-level item - meaningfully faster than plain scp
 // once a directory holds more than a handful of files (each file is its own
@@ -195,16 +240,14 @@ const resolveAppMembers = (env: DeployEnv, projectDir: string): string[] => {
 // like scp's user@host: convention), so this file can never pass one of
 // those tools an absolute local path as an argv element - only cwd.
 //
-// Safety: cleanRemote() already wiped DEPLOY_PATH down to just `.env` before
-// this runs, and extraction only ever *adds* files - it never deletes what's
-// already there. So as long as `.env` never ends up as a tar member (it
-// isn't one of DIST_DIR/SOURCE_DIRS/package.json/lockfile/pm2.config.cjs in
-// any normal project layout), the remote `.env` bootstrapped once per
-// deploy target survives every redeploy untouched.
+// The current deployment stays in place until the complete archive has been
+// created and uploaded. cleanRemote() then preserves both `.env` and that
+// uploaded archive while removing stale application files.
 const archiveAndCopyToRemote = (
   env: DeployEnv,
   projectDir: string,
   pm2ConfigDir: string | null,
+  entryFile: string,
 ): void => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
   const isStaticSite = env.STATIC_SITE === "true";
@@ -212,6 +255,7 @@ const archiveAndCopyToRemote = (
   // else archives from projectDir.
   const archiveCwd = isStaticSite ? path.join(projectDir, distDir) : projectDir;
 
+  validateArchiveInputs(env, projectDir, pm2ConfigDir, entryFile);
   log("Archiving files for transfer...");
 
   if (isStaticSite) {
@@ -246,6 +290,7 @@ const archiveAndCopyToRemote = (
   const localArchivePath = path.join(archiveCwd, ARCHIVE_FILE_NAME);
   const remoteArchivePath = `${env.DEPLOY_PATH}/${ARCHIVE_FILE_NAME}`;
   try {
+    ensureRemoteDirectory(env);
     log("Copying archive to remote server...");
     runArgv(
       "scp",
@@ -255,19 +300,20 @@ const archiveAndCopyToRemote = (
       ],
       archiveCwd,
     );
-  } finally {
-    unlinkSync(localArchivePath);
-  }
+    cleanRemote(env);
 
-  log("Extracting archive on remote server...");
-  runArgv(
-    "ssh",
-    [
-      `${env.DEPLOY_USER}@${env.DEPLOY_HOST}`,
-      `tar -xzf '${remoteArchivePath}' -C '${env.DEPLOY_PATH}' && rm '${remoteArchivePath}'`,
-    ],
-    projectDir,
-  );
+    log("Extracting archive on remote server...");
+    runArgv(
+      "ssh",
+      [
+        `${env.DEPLOY_USER}@${env.DEPLOY_HOST}`,
+        `tar -xzf '${remoteArchivePath}' -C '${env.DEPLOY_PATH}' && rm '${remoteArchivePath}'`,
+      ],
+      projectDir,
+    );
+  } finally {
+    if (existsSync(localArchivePath)) unlinkSync(localArchivePath);
+  }
 };
 
 // Follows Bun's official PM2 guide (https://bun.com/guides/ecosystem/pm2):
@@ -318,7 +364,7 @@ const generatePm2ConfigContent = (
 // the OS temp dir specifically so archiveAndCopyToRemote() can reference it
 // with a path relative to projectDir - see the note there on why this file
 // never hands tar/scp an absolute local path. Regenerated on every deploy
-// (not just once), since cleanRemote() wipes DEPLOY_PATH down to `.env` first.
+// (not just once), so the new config is included in each uploaded archive.
 const stagePm2Config = (
   projectDir: string,
   env: DeployEnv,
@@ -401,8 +447,6 @@ export const deploy = (config: DeployConfig = {}): void => {
       log("Skipping build (--skip-build flag set)");
     }
 
-    cleanRemote(env);
-
     if (!isStaticSite) {
       // Non-null: validate() already requires APP_NAME for non-static sites.
       pm2ConfigDir = stagePm2Config(
@@ -412,7 +456,7 @@ export const deploy = (config: DeployConfig = {}): void => {
         entryFile,
       );
     }
-    archiveAndCopyToRemote(env, projectDir, pm2ConfigDir);
+    archiveAndCopyToRemote(env, projectDir, pm2ConfigDir, entryFile);
 
     if (!isStaticSite) {
       restartRemote(env, projectDir);
@@ -424,7 +468,7 @@ export const deploy = (config: DeployConfig = {}): void => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     log(`✗ Deployment failed: ${message}`);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     if (pm2ConfigDir) rmSync(pm2ConfigDir, { recursive: true, force: true });
   }
