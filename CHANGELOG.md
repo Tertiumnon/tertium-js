@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.1 - 2026-10-01
+
+- fix deploy archive safety
+
 ## 3.0.0 - 2026-09-22
 
 - chore: trim package.json scripts to daily-use ones only
