@@ -196,6 +196,17 @@ DIST_DIR=dist/my-app/browser/          # Angular example
 - **It must live at `DEPLOY_PATH/.env`** — a sibling of `dist/`, not inside it. PM2 starts the app with `cwd` set to `DEPLOY_PATH`, and both Bun's built-in `.env` auto-loading and the common `import "dotenv/config"` pattern resolve `.env` relative to `process.cwd()`, not relative to the script file. Putting it inside `dist/` silently breaks secret loading.
 - **The clean-remote step preserves it deliberately.** Every deploy wipes everything under `DEPLOY_PATH` except `.env` (see "Clean Remote" below) — that's what makes the bootstrap genuinely one-time instead of something you redo on every deploy.
 
+## First-time PM2 setup
+
+For a non-static app, prepare the remote host before its first deployment:
+
+1. Install Bun, ZSH, and PM2 for the deployment account. Install PM2 with `npm install -g pm2`.
+2. Ensure `DEPLOY_USER` can write to `DEPLOY_PATH`, and create `DEPLOY_PATH/.env` with the app's runtime secrets as described above.
+3. Do not create a PM2 app process manually. The first deploy generates `pm2.config.cjs`, ignores `pm2 delete APP_NAME` when the process does not exist yet, then runs `pm2 start pm2.config.cjs` and `pm2 save`.
+4. To have PM2 resurrect saved processes after a host reboot, run `pm2 startup` once as `DEPLOY_USER` and execute the elevated command it prints. The deploy's `pm2 save` records the app process list; this startup setup is optional and is not required to deploy.
+
+Static sites (`STATIC_SITE=true`) do not use PM2.
+
 ## How It Works
 
 1. **Load & Validate** (deploy.ts):
@@ -214,7 +225,7 @@ DIST_DIR=dist/my-app/browser/          # Angular example
   - Checks every required local archive input before contacting the remote host, so a missing build output fails clearly without affecting the current deployment
    - Dist mode: archives `package.json`, a lockfile (`bun.lockb` / `bun.lock` / `package-lock.json`, first one found), the `dist/` directory itself (so it lands as `DEPLOY_PATH/dist/...`, matching PM2's entry point), and `pm2.config.cjs`
    - Source mode (`SOURCE_DIRS` set): archives each listed directory as-is instead of `dist/`, plus `package.json`, a lockfile, and `pm2.config.cjs`
-   - Static sites (`STATIC_SITE=true`): archives the *contents* of `DIST_DIR` (no `pm2.config.cjs` - static sites skip PM2 entirely), so extraction lands them directly in `DEPLOY_PATH`
+  - Static sites (`STATIC_SITE=true`): archives the *contents* of `DIST_DIR` (no `pm2.config.cjs` - static sites skip PM2 entirely), writing the archive outside `DIST_DIR` so it cannot include itself; extraction lands the site files directly in `DEPLOY_PATH`
     - Creates the archive locally, uploads it, then removes stale remote files while preserving `.env` and the uploaded archive. It extracts the archive with `tar -xzf ... -C DEPLOY_PATH` and deletes it on both ends. This keeps the current deployment intact if local archiving or upload fails
 
 5. **Remote Setup** (SSH with interactive zsh):

@@ -251,18 +251,16 @@ const archiveAndCopyToRemote = (
 ): void => {
   const distDir = (env.DIST_DIR || "dist").replace(/\/+$/, "");
   const isStaticSite = env.STATIC_SITE === "true";
-  // Static sites archive from inside distDir itself (see below); everything
-  // else archives from projectDir.
-  const archiveCwd = isStaticSite ? path.join(projectDir, distDir) : projectDir;
+  const archiveCwd = projectDir;
 
   validateArchiveInputs(env, projectDir, pm2ConfigDir, entryFile);
   log("Archiving files for transfer...");
 
   if (isStaticSite) {
     // Static assets are served directly from DEPLOY_PATH, so archive the
-    // *contents* of the dist dir rather than the dist dir itself - cwd is
-    // already distDir, so "." captures exactly that.
-    runArgv("tar", ["-czf", ARCHIVE_FILE_NAME, "."], archiveCwd);
+    // *contents* of distDir rather than the directory itself. The archive is
+    // written outside distDir so it cannot include itself.
+    runArgv("tar", ["-czf", ARCHIVE_FILE_NAME, "-C", distDir, "."], archiveCwd);
   } else {
     const tarArgs = [
       "-czf",
