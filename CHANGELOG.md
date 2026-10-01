@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.2 - 2026-10-01
+
+- fix static deploy archive self-inclusion
+
 ## 3.0.1 - 2026-10-01
 
 - fix deploy archive safety
