@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.4 - 2026-10-03
+
+- fix(release): push only the release tag; format the deploy env fix
+
 ## 3.0.3 - 2026-10-03
 
 - fix(deploy): pass process.env to the build explicitly
