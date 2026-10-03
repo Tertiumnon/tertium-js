@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.3 - 2026-10-03
+
+- fix(deploy): pass process.env to the build explicitly
+- docs: create to-do for deploy
+
 ## 3.0.2 - 2026-10-01
 
 - fix static deploy archive self-inclusion
