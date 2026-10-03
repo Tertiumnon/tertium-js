@@ -23,7 +23,11 @@ const run = (command: string, cwd: string): void => {
   // Note: stdio: "inherit" requires object-style options, but TypeScript's
   // ExecSyncOptions type doesn't properly support this combination.
   // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
-  execSync(command, { stdio: "inherit", cwd, shell: true } as any);
+  // env passed explicitly: under Bun on Windows a shell child does not inherit
+  // process.env changes made at runtime (aws-env deploy merges the target's
+  // VITE_* etc. into process.env just before the build), so without it a dist
+  // build silently bakes in the local .env values instead.
+  execSync(command, { stdio: "inherit", cwd, shell: true, env: process.env } as any);
 };
 
 // For ssh/scp: no shell at all, so argv reaches the process exactly as
