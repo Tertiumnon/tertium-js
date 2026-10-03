@@ -27,7 +27,12 @@ const run = (command: string, cwd: string): void => {
   // process.env changes made at runtime (aws-env deploy merges the target's
   // VITE_* etc. into process.env just before the build), so without it a dist
   // build silently bakes in the local .env values instead.
-  execSync(command, { stdio: "inherit", cwd, shell: true, env: process.env } as any);
+  execSync(command, {
+    stdio: "inherit",
+    cwd,
+    shell: true,
+    env: process.env,
+  } as any);
 };
 
 // For ssh/scp: no shell at all, so argv reaches the process exactly as

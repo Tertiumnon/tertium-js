@@ -53,8 +53,9 @@ function release(type: ReleaseType): void {
       run("git checkout main");
       run("git pull");
       run(`npm version ${type}`);
-      run("git push");
-      run("git push --tags");
+      // Only the tags on the commits being pushed (the new version tag) - `--tags` would
+      // push every local tag, and one stale local tag fails the whole release.
+      run("git push --follow-tags");
       run("git checkout develop");
       run("git pull");
       run("git rebase main");
@@ -82,8 +83,9 @@ function release(type: ReleaseType): void {
       }
       run("git pull");
       run(`npm version ${type}`);
-      run("git push");
-      run("git push --tags");
+      // Only the tags on the commits being pushed (the new version tag) - `--tags` would
+      // push every local tag, and one stale local tag fails the whole release.
+      run("git push --follow-tags");
       run("git checkout main");
       run("git pull");
       run("git merge develop");
