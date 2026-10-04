@@ -233,6 +233,20 @@ deploy({
 
 **See:** [scripts/deploy/deploy.md](scripts/deploy/deploy.md)
 
+### DB Sync script (`./scripts/db-sync/*`)
+
+Copies one MySQL/MariaDB database over another (dev → prod): dumps the source over SSH and pipes
+it straight into the target over a second SSH connection, after a local backup of the target.
+Each side comes from its own env file (`DEPLOY_USER`/`DEPLOY_HOST` + `DATABASE_URL`), the same
+`.env.dev`/`.env.prod` that deploy uses — usually fetched from AWS SSM in memory via
+`aws-env db-sync`.
+
+```bash
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts db-sync --from=.env.dev --to=.env.prod --dry-run
+```
+
+**See:** [scripts/db-sync/db-sync.md](scripts/db-sync/db-sync.md)
+
 ### AWS Env script (`./scripts/aws-env/*`)
 
 Stores `.env*` files in AWS SSM Parameter Store (SecureString, free standard tier) so AWS is the

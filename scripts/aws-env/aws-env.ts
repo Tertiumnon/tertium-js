@@ -2,6 +2,8 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
+import { dbSync } from "../db-sync/db-sync";
+import type { DbSyncConfig, DbSyncEnv } from "../db-sync/db-sync.types";
 import { deploy as runDeploy } from "../deploy/deploy";
 import { ENV_FILE_SUGGESTIONS, SYNC_HEADER_PREFIX } from "./aws-env.constants";
 import type { AwsEnvConfig } from "./aws-env.types";
@@ -314,6 +316,58 @@ export const deployWithEnv = (
   runDeploy({ projectDir, envFile: tempFileName, skipBuild: opts.skipBuild });
 };
 
+// Copy one database over another (see db-sync.ts) with both targets' env files fetched from
+// AWS into memory only - unlike `deploy`, nothing reads a file, so nothing touches the disk.
+// Both env files are explicit, for the same reason `deploy` requires one.
+export const dbSyncWithEnv = async (
+  config: AwsEnvConfig,
+  opts: { from?: string; to?: string } & Omit<
+    DbSyncConfig,
+    "fromEnv" | "toEnv" | "fromEnvFile" | "toEnvFile"
+  >,
+): Promise<void> => {
+  const projectDir = config.projectDir || process.cwd();
+  const { from, to, ...syncOpts } = opts;
+  if (!from || !to) {
+    console.error(
+      "Error: `aws-env db-sync` requires --from=.env.dev --to=.env.prod (source, then the " +
+        "database to overwrite) - copying without naming both is too easy to get wrong.",
+    );
+    process.exit(1);
+    return;
+  }
+
+  const fetchEnv = (envFile: string): DbSyncEnv => {
+    const paramName = resolveParamName({
+      ...config,
+      envFile,
+      paramName: undefined,
+    });
+    log(`Fetching ${paramName} (in memory only)...`);
+    try {
+      return parseEnvContent(
+        fetchParamValue(
+          { ...config, envFile, paramName: undefined },
+          projectDir,
+        ),
+      ) as unknown as DbSyncEnv;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      log(`✗ Fetch failed: ${message}`);
+      process.exit(1);
+    }
+  };
+
+  await dbSync({
+    ...syncOpts,
+    projectDir,
+    fromEnvFile: from,
+    toEnvFile: to,
+    fromEnv: fetchEnv(from),
+    toEnv: fetchEnv(to),
+  });
+};
+
 // CLI entry point - execute if called directly as a script
 if (process.argv[1]?.includes("aws-env.ts")) {
   const subcommand = process.argv[2];
@@ -361,9 +415,22 @@ if (process.argv[1]?.includes("aws-env.ts")) {
     case "deploy":
       deployWithEnv(config, { skipBuild: flagArgs.includes("--skip-build") });
       break;
+    case "db-sync":
+      dbSyncWithEnv(config, {
+        from: getFlag("from"),
+        to: getFlag("to"),
+        backupDir: getFlag("backup-dir"),
+        yes: flagArgs.includes("--yes") || flagArgs.includes("-y"),
+        skipBackup: flagArgs.includes("--skip-backup"),
+        dryRun: flagArgs.includes("--dry-run"),
+      }).catch((error: unknown) => {
+        log(`✗ ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      });
+      break;
     default:
       console.error(
-        `Unknown subcommand "${subcommand ?? ""}". Usage: aws-env.ts <push|pull|sync|run|deploy> [--env-file=.env] [--prefix=/env] [--repo=name] [--param=/full/name] [--region=...] [--profile=...] [--skip-build] [-- <command...>]`,
+        `Unknown subcommand "${subcommand ?? ""}". Usage: aws-env.ts <push|pull|sync|run|deploy|db-sync> [--env-file=.env] [--from=.env.dev --to=.env.prod] [--dry-run] [--yes] [--skip-backup] [--prefix=/env] [--repo=name] [--param=/full/name] [--region=...] [--profile=...] [--skip-build] [-- <command...>]`,
       );
       process.exit(1);
   }
