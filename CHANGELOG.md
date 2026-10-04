@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.0 - 2026-10-04
+
+- feat(db-sync): add dev→prod DB copy with AWS env in memory
+
 ## 3.0.4 - 2026-10-03
 
 - fix(release): push only the release tag; format the deploy env fix
