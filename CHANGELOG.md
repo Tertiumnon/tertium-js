@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.1 - 2026-10-04
+
+- feat: new db sync param
+
 ## 3.1.0 - 2026-10-04
 
 - feat(db-sync): add dev→prod DB copy with AWS env in memory
