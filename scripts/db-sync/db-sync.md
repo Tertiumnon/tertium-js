@@ -3,7 +3,8 @@
 Copies one MySQL/MariaDB database over another — typically dev over prod. It dumps the source
 on its host over SSH and pipes the dump straight into the target on its host over a second SSH
 connection, so nothing is staged on disk in between. The target is backed up locally first.
-**It overwrites the target**: treat it as destructive.
+**It overwrites the target without asking** - run `--dry-run` first when unsure; the backup is
+the way back.
 
 ## Configuration
 
@@ -45,7 +46,6 @@ bun node_modules/@tertium/js/scripts/db-sync/db-sync.ts --from=.env.dev --to=.en
 | `--from=<file>` | Env file of the source (`db-sync.ts` default `.env.dev`; required for `aws-env`) |
 | `--to=<file>` | Env file of the database to overwrite (`db-sync.ts` default `.env.prod`; required for `aws-env`) |
 | `--dry-run` | Resolve both sides, find the binaries, count rows, then stop — writes nothing |
-| `--yes`, `-y` | Skip the `Type "yes" to continue` prompt |
 | `--skip-backup` | Skip the local backup of the target |
 | `--backup-dir=<dir>` | Where the backup goes, relative to the project (default `backups`) |
 
@@ -78,7 +78,7 @@ await dbSync({ fromEnv: { DATABASE_URL: '…', DEPLOY_USER: '…', DEPLOY_HOST: 
 3. Prints the approximate row count of each side (`information_schema.TABLE_ROWS`).
 4. Dumps the target to `backups/<to>-before-sync_<timestamp>.sql`; if that fails, stops with
    nothing overwritten.
-5. Asks for `yes`, then runs `dump --single-transaction --routines --triggers` on the source,
+5. Runs `dump --single-transaction --routines --triggers` on the source,
    piped into the client on the target.
 
 The password reaches the remote commands as `MYSQL_PWD`, never as `-p<password>`, so it does not

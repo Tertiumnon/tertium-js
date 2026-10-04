@@ -420,7 +420,6 @@ if (process.argv[1]?.includes("aws-env.ts")) {
         from: getFlag("from"),
         to: getFlag("to"),
         backupDir: getFlag("backup-dir"),
-        yes: flagArgs.includes("--yes") || flagArgs.includes("-y"),
         skipBackup: flagArgs.includes("--skip-backup"),
         dryRun: flagArgs.includes("--dry-run"),
       }).catch((error: unknown) => {
@@ -430,7 +429,7 @@ if (process.argv[1]?.includes("aws-env.ts")) {
       break;
     default:
       console.error(
-        `Unknown subcommand "${subcommand ?? ""}". Usage: aws-env.ts <push|pull|sync|run|deploy|db-sync> [--env-file=.env] [--from=.env.dev --to=.env.prod] [--dry-run] [--yes] [--skip-backup] [--prefix=/env] [--repo=name] [--param=/full/name] [--region=...] [--profile=...] [--skip-build] [-- <command...>]`,
+        `Unknown subcommand "${subcommand ?? ""}". Usage: aws-env.ts <push|pull|sync|run|deploy|db-sync> [--env-file=.env] [--from=.env.dev --to=.env.prod] [--dry-run] [--skip-backup] [--prefix=/env] [--repo=name] [--param=/full/name] [--region=...] [--profile=...] [--skip-build] [-- <command...>]`,
       );
       process.exit(1);
   }

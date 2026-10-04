@@ -32,8 +32,6 @@ export interface DbSyncConfig {
   toEnvFile?: string;
   fromEnv?: DbSyncEnv;
   toEnv?: DbSyncEnv;
-  /** Skip the "type yes" prompt. */
-  yes?: boolean;
   /** Skip the local backup of the target taken before it is overwritten. */
   skipBackup?: boolean;
   /** Resolve both sides, find the binaries, count rows, and stop before writing anything. */

@@ -9,7 +9,6 @@ import {
   unlinkSync,
 } from "node:fs";
 import * as path from "node:path";
-import { createInterface } from "node:readline/promises";
 import { loadEnv } from "../deploy/deploy";
 import {
   CLIENT_CANDIDATES,
@@ -144,20 +143,14 @@ const backupTarget = async (
   return file;
 };
 
-const confirm = async (message: string): Promise<boolean> => {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = await rl.question(`${message} Type "yes" to continue: `);
-  rl.close();
-  return answer.trim().toLowerCase() === "yes";
-};
-
 const envLabel = (envFile: string): string =>
   envFile.replace(/^\.env\.?/, "") || "env";
 
 /**
  * Copies one MySQL/MariaDB database over another: dumps the source on its host over SSH and
  * pipes the dump straight into the target on its host over a second SSH connection, with no
- * intermediate file. The target is backed up locally first unless `skipBackup`.
+ * intermediate file. The target is backed up locally first unless `skipBackup`. It does not ask
+ * before overwriting: `dryRun` shows what a run would do.
  */
 export const dbSync = async (config: DbSyncConfig = {}): Promise<void> => {
   const projectDir = config.projectDir || process.cwd();
@@ -217,13 +210,6 @@ export const dbSync = async (config: DbSyncConfig = {}): Promise<void> => {
     log("Skipping the backup (--skip-backup)");
   }
 
-  if (!config.yes) {
-    const proceed = await confirm(
-      `\nThis copies "${from.dbName}" from ${from.ssh} into "${to.dbName}" on ${to.ssh}, overwriting it.`,
-    );
-    if (!proceed) throw new Error("Aborted by user");
-  }
-
   log(`Dumping ${from.label} and importing into ${to.label}...`);
   const dump = spawn(
     "ssh",
@@ -262,7 +248,6 @@ if (process.argv[1]?.includes("db-sync.ts")) {
     fromEnvFile: flag("from"),
     toEnvFile: flag("to"),
     backupDir: flag("backup-dir"),
-    yes: args.includes("--yes") || args.includes("-y"),
     skipBackup: args.includes("--skip-backup"),
     dryRun: args.includes("--dry-run"),
   }).catch((error: unknown) => {
