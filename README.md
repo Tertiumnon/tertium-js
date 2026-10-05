@@ -247,6 +247,17 @@ bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts db-sync --from=.env.dev 
 
 **See:** [scripts/db-sync/db-sync.md](scripts/db-sync/db-sync.md)
 
+### DB Backup script (`./scripts/db-backup/*`)
+
+Creates a full MySQL/MariaDB SQL backup locally or over SSH from the target's `DATABASE_URL`.
+It can read a local env file or fetch one from AWS SSM without writing the credentials to disk.
+
+```bash
+bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts db-backup --env-file=.env.prod
+```
+
+**See:** [scripts/db-backup/db-backup.md](scripts/db-backup/db-backup.md)
+
 ### AWS Env script (`./scripts/aws-env/*`)
 
 Stores `.env*` files in AWS SSM Parameter Store (SecureString, free standard tier) so AWS is the

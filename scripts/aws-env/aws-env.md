@@ -1,18 +1,19 @@
 # AWS Env Command
 
 Stores `.env*` files in AWS SSM Parameter Store (SecureString, standard tier — free, no rotation
-machinery) so AWS, not a hand-maintained local file, is the source of truth. Six subcommands:
+machinery) so AWS, not a hand-maintained local file, is the source of truth. Seven subcommands:
 `push` a local file up (the source changed, save it), `pull` a parameter straight down (force the
 exact current source), `sync` refresh the local cache with an offline fallback, `run` a command
 with the local cache's variables injected into its environment, `deploy` which fetches a
 deploy-target env file fresh from AWS, uses it for exactly one deploy, and deletes it immediately
-after - it's never written to a persistent local file at all - and `db-sync`, which fetches two
-deploy-target env files into memory and copies one's database over the other's (see
+after - it's never written to a persistent local file at all - plus `db-backup` and `db-sync`,
+which fetch database environments into memory (see [db-backup](../db-backup/db-backup.md) and
 [db-sync](../db-sync/db-sync.md)).
 
 ```bash
 bun scripts/aws-env/aws-env.ts db-sync --from=.env.dev --to=.env.prod --dry-run
 bun scripts/aws-env/aws-env.ts db-sync --from=.env.dev --to=.env.prod
+bun scripts/aws-env/aws-env.ts db-backup --env-file=.env.prod
 ```
 
 ## Local dev vs. deploy targets - two different local-storage stories

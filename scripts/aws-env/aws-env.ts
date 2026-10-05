@@ -2,6 +2,8 @@
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
+import { dbBackup } from "../db-backup/db-backup";
+import type { DbBackupEnv } from "../db-backup/db-backup.types";
 import { dbSync } from "../db-sync/db-sync";
 import type { DbSyncConfig, DbSyncEnv } from "../db-sync/db-sync.types";
 import { deploy as runDeploy } from "../deploy/deploy";
@@ -368,6 +370,30 @@ export const dbSyncWithEnv = async (
   });
 };
 
+export const dbBackupWithEnv = async (
+  config: AwsEnvConfig,
+  opts: { backupDir?: string; filenamePrefix?: string } = {},
+): Promise<string> => {
+  const projectDir = config.projectDir || process.cwd();
+  const envFile = config.envFile;
+  if (!envFile || envFile === ".env") {
+    throw new Error(
+      "`aws-env db-backup` requires an explicit --env-file=.env.dev (or .env.prod)",
+    );
+  }
+  const paramName = resolveParamName(config);
+  log(`Fetching ${paramName} (in memory only)...`);
+  const env = parseEnvContent(
+    fetchParamValue(config, projectDir),
+  ) as unknown as DbBackupEnv;
+  return dbBackup({
+    ...opts,
+    projectDir,
+    envFile,
+    env,
+  });
+};
+
 // CLI entry point - execute if called directly as a script
 if (process.argv[1]?.includes("aws-env.ts")) {
   const subcommand = process.argv[2];
@@ -427,9 +453,18 @@ if (process.argv[1]?.includes("aws-env.ts")) {
         process.exit(1);
       });
       break;
+    case "db-backup":
+      dbBackupWithEnv(config, {
+        backupDir: getFlag("backup-dir"),
+        filenamePrefix: getFlag("filename-prefix"),
+      }).catch((error: unknown) => {
+        log(`✗ ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      });
+      break;
     default:
       console.error(
-        `Unknown subcommand "${subcommand ?? ""}". Usage: aws-env.ts <push|pull|sync|run|deploy|db-sync> [--env-file=.env] [--from=.env.dev --to=.env.prod] [--dry-run] [--skip-backup] [--prefix=/env] [--repo=name] [--param=/full/name] [--region=...] [--profile=...] [--skip-build] [-- <command...>]`,
+        `Unknown subcommand "${subcommand ?? ""}". Usage: aws-env.ts <push|pull|sync|run|deploy|db-backup|db-sync> [--env-file=.env] [--from=.env.dev --to=.env.prod] [--dry-run] [--skip-backup] [--backup-dir=backups] [--filename-prefix=backup] [--prefix=/env] [--repo=name] [--param=/full/name] [--region=...] [--profile=...] [--skip-build] [-- <command...>]`,
       );
       process.exit(1);
   }
