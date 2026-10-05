@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.2.0 - 2026-10-05
+
+- feat(db-backup): add shared MariaDB backup command
+
 ## 3.1.1 - 2026-10-04
 
 - feat: new db sync param
