@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.0.0 - 2026-10-11
+
+- feat(workflow): run a project's .tertium/workflows/*.yml in GitHub Actions syntax
+- chore: retain shared VS Code tasks
+
 ## 3.2.0 - 2026-10-05
 
 - feat(db-backup): add shared MariaDB backup command
