@@ -75,7 +75,7 @@ export const resolveParamName = (config: AwsEnvConfig): string => {
   return `${prefix}/${repoName}/${suffix}`;
 };
 
-const parseEnvContent = (content: string): Record<string, string> => {
+export const parseEnvContent = (content: string): Record<string, string> => {
   const vars: Record<string, string> = {};
   content.split("\n").forEach((line) => {
     const trimmed = line.trim();
@@ -138,7 +138,10 @@ export const pushEnv = (config: AwsEnvConfig = {}): void => {
 
 // AWS CLI's `--output text` emits CRLF line endings on Windows regardless of what was
 // uploaded - normalize back to LF so a fetched value matches what `push` read in.
-const fetchParamValue = (config: AwsEnvConfig, projectDir: string): string => {
+export const fetchParamValue = (
+  config: AwsEnvConfig,
+  projectDir: string,
+): string => {
   const paramName = resolveParamName(config);
   const raw = runCapture(
     `aws ssm get-parameter --name "${paramName}" --with-decryption --query Parameter.Value --output text${awsCommonFlags(config)}`,
