@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.1.0 - 2026-10-13
+
+- chore: move scripts to hlpr and document the move
+
 ## 4.0.0 - 2026-10-11
 
 - feat(workflow): run a project's .tertium/workflows/*.yml in GitHub Actions syntax
