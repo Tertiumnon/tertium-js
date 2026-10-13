@@ -24,11 +24,9 @@ Because modules are consumed via subpath imports straight from source (no bundli
     - Clean
     - Release
     - Changelog
-    - Improve Start Scripts
     - Deploy
     - AWS Env
-    - Publish Workflow
-    - Git Hooks
+    - Moved to hlpr
 - Contributing
 
 ## Installation
@@ -105,7 +103,6 @@ Add the ones you'll actually run day-to-day (or as part of a release) to your pr
 {
   "scripts": {
     "clean": "bun node_modules/@tertium/js/scripts/clean/clean.ts",
-    "improve:scripts": "bun node_modules/@tertium/js/scripts/improve-start-scripts/improve-start-scripts.ts",
     "changelog": "bun node_modules/@tertium/js/scripts/changelog/changelog.ts --dry-run",
     "version": "bun node_modules/@tertium/js/scripts/changelog/changelog.ts && git add CHANGELOG.md",
     "release:patch": "bun node_modules/@tertium/js/scripts/release/release.ts patch",
@@ -153,19 +150,6 @@ bun run changelog   # preview the entry for the current version without writing 
 ```
 
 **See:** [scripts/changelog/changelog.md](scripts/changelog/changelog.md)
-
-### Improve Start Scripts
-
-Auto-detects project framework and ensures `start` and `dev` npm scripts are properly configured.
-
-Supports: Vite, Angular, React, SolidJS, Create React App.
-
-```bash
-bun run improve:scripts          # Check current project
-bun run improve:scripts -- --update  # Update scripts
-```
-
-**See:** [scripts/improve-start-scripts/improve-start-scripts.md](scripts/improve-start-scripts/improve-start-scripts.md)
 
 ### Deploy script (`./scripts/deploy/*`)
 
@@ -281,37 +265,18 @@ bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts deploy --env-file=.env.p
 
 **See:** [scripts/aws-env/aws-env.md](scripts/aws-env/aws-env.md)
 
-### Publish Workflow script (`./scripts/npm-publish-workflow/*`)
+### Moved to hlpr
 
-Generates `.github/workflows/publish.yml`, which publishes the package to npm via
-[trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) on every `v*` tag push -
-no `NPM_TOKEN` secret required. Detects the package manager from the lockfile and only wires up
-the `lint`/`build`/`test` steps that actually exist in `package.json`.
+Some scripts were moved out of this package into the [hlpr](https://github.com/Tertiumnon/tertium-hlpr) CLI, where they are commands instead of files under `scripts/`. Install it with `npm install -g @tertium/hlpr`, then use the command in the right-hand column:
 
-One-time setup, not a script you run regularly - invoke directly rather than aliasing it in `package.json`:
+| Old script | hlpr command |
+|---|---|
+| `scripts/improve-start-scripts` | `hlpr npm scripts` |
+| `scripts/git-hooks` | `hlpr git setup -hooks` |
+| `scripts/npm-publish-workflow` | `hlpr gh setup -workflow publish` |
+| `scripts/azure-deployment-pipeline` | `hlpr az setup -workflow deploy` |
 
-```bash
-bun scripts/npm-publish-workflow/npm-publish-workflow.ts            # Generate .github/workflows/publish.yml
-bun scripts/npm-publish-workflow/npm-publish-workflow.ts -- --force # Overwrite an existing workflow file
-```
-
-**See:** [scripts/npm-publish-workflow/npm-publish-workflow.md](scripts/npm-publish-workflow/npm-publish-workflow.md)
-
-### Git Hooks script (`./scripts/git-hooks/*`)
-
-Generates a version-controlled `.githooks/pre-commit` hook (lint/typecheck/test) and points
-`git config core.hooksPath` at it, so a broken commit can't slip through — and adds a
-`prepare` script so every contributor's next install re-wires the hook path automatically,
-since `.githooks/` is tracked in git unlike `.git/hooks/`.
-
-One-time setup, not a script you run regularly - invoke directly rather than aliasing it in `package.json`:
-
-```bash
-bun scripts/git-hooks/git-hooks.ts            # Generate .githooks/pre-commit and wire it up
-bun scripts/git-hooks/git-hooks.ts -- --force # Overwrite an existing hook file
-```
-
-**See:** [scripts/git-hooks/git-hooks.md](scripts/git-hooks/git-hooks.md)
+The scripts were removed from this package, so a project that still calls them from `node_modules/@tertium/js/scripts/...` in its `package.json` must switch to the hlpr command. Scripts used by this package's own npm scripts (`changelog`, `release`) stay here.
 
 ## Contributing
 
