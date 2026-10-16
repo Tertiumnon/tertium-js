@@ -130,9 +130,9 @@ bun scripts/clean/clean.ts dist build  # Remove multiple directories
 Git-flow releases moved to [@tertium/gf](https://github.com/Tertiumnon/gf), which has no dependency on this package. Install `gf` and run it from this repo:
 
 ```bash
-gf release patch   # from main (hotfixes)
-gf release minor   # from develop (features)
-gf release major   # from develop (breaking changes)
+gf release --patch   # from main (hotfixes)
+gf release --minor   # from develop (features)
+gf release --major   # from develop (breaking changes)
 ```
 
 ### Changelog
