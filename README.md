@@ -22,7 +22,6 @@ Because modules are consumed via subpath imports straight from source (no bundli
   - Importing modules
   - Scripts
     - Clean
-    - Release
     - Changelog
     - Deploy
     - AWS Env
@@ -128,18 +127,13 @@ bun scripts/clean/clean.ts dist build  # Remove multiple directories
 
 ### Release
 
-Automates version bumps and git workflow for npm packages.
-
-- **Patch**: Release from main branch (hotfixes)
-- **Minor/Major**: Release from develop branch (features/breaking changes)
+Git-flow releases moved to [@tertium/gf](https://github.com/Tertiumnon/gf), which has no dependency on this package. Install `gf` and run it from this repo:
 
 ```bash
-bun run release:patch
-bun run release:minor
-bun run release:major
+gf release patch   # from main (hotfixes)
+gf release minor   # from develop (features)
+gf release major   # from develop (breaking changes)
 ```
-
-**See:** [scripts/release/release.md](scripts/release/release.md)
 
 ### Changelog
 

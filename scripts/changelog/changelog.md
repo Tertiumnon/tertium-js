@@ -4,7 +4,7 @@ Generates a `CHANGELOG.md` entry from git history - fully automatic, no manual w
 
 ## What It Does
 
-Wired as npm's own [`version` lifecycle script](https://docs.npmjs.com/cli/v10/commands/npm-version#description), so it runs automatically every time `npm version <type>` bumps the version - whether that's triggered directly or via the `release` script. At that point in the lifecycle, `package.json` already has the new version but the git tag/commit for it don't exist yet, so:
+Wired as npm's own [`version` lifecycle script](https://docs.npmjs.com/cli/v10/commands/npm-version#description), so it runs automatically every time `npm version <type>` bumps the version - whether that's triggered directly or via `gf release`. At that point in the lifecycle, `package.json` already has the new version but the git tag/commit for it don't exist yet, so:
 
 1. Reads the new version from `package.json`.
 2. Finds the previous release's git tag (or, on the very first release, the whole history).
@@ -26,7 +26,7 @@ Already wired into this package's own `npm version` (see `package.json`'s `"vers
 }
 ```
 
-No further setup - the next `npm version patch/minor/major` (including via this package's `release` script) will generate and commit the entry automatically.
+No further setup - the next `npm version patch/minor/major` (including via `gf release`) will generate and commit the entry automatically.
 
 ### Preview without writing anything
 
