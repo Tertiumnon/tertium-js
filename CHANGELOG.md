@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.0 - 2026-10-17
+
+- (no changes recorded)
+
 ## 4.1.0 - 2026-10-13
 
 - chore: move scripts to hlpr and document the move
