@@ -20,11 +20,9 @@
     "libs/"
   ],
   "scripts": {
-    "changelog": "bun scripts/changelog/changelog.ts --dry-run",
-    "version": "bun scripts/changelog/changelog.ts && git add CHANGELOG.md",
-    "release:patch": "gf release --patch",
-    "release:minor": "gf release --minor",
-    "release:major": "gf release --major",
+    "release:patch": "gith release --patch",
+    "release:minor": "gith release --minor",
+    "release:major": "gith release --major",
     "test": "bun test --no-coverage || echo 'No tests found'",
     "lint": "biome check scripts core entities libs",
     "lint:fix": "biome check --write scripts core entities libs",
