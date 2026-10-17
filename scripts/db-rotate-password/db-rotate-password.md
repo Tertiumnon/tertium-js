@@ -4,14 +4,13 @@ Changes a Node/Bun project's database password and moves it everywhere the proje
 
 ```bash
 bun node_modules/@tertium/js/scripts/db-rotate-password/db-rotate-password.ts \
-  --host=<ssh host> --ssm-param=/env/<project>/env.dev \
+  --ssm-param=/env/<project>/env.dev \
   --app-path=/var/www/<project> --app-name=<pm2 name>
 ```
 
 | Flag | Meaning |
 |------|---------|
-| `--host=<ssh host>` | The host the database and the app run on: a Host alias or HostName from `~/.ssh/config`. |
-| `--ssm-param=<name>` | The SSM parameter whose value is the app's env file. Its `DATABASE_URL` names the user and database. |
+| `--ssm-param=<name>` | The SSM parameter whose value is the app's env file. Its `DATABASE_URL` names the user and database, and its `DEPLOY_HOST` / `DEPLOY_USER` (or `DB_SSH_HOST` / `DB_SSH_USER`) name the host the database and the app run on. |
 | `--app-path=<dir>` | The app's directory on that host, holding `.env`. Needs `--app-name`. |
 | `--app-name=<pm2 name>` | The PM2 process name of the app, restarted so it reads the new `.env`. Needs `--app-path`. |
 | `--dry-run` | Prints the plan and changes nothing. |

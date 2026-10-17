@@ -222,7 +222,7 @@ Changes a project's database password, the SSM parameter that holds its `DATABAS
 rotate-password`; the app steps are here, since they are specific to Node/Bun projects.
 
 ```bash
-bun node_modules/@tertium/js/scripts/db-rotate-password/db-rotate-password.ts --host=<ssh host> --ssm-param=/env/<project>/env.dev --app-path=/var/www/<project> --app-name=<pm2 name>
+bun node_modules/@tertium/js/scripts/db-rotate-password/db-rotate-password.ts --ssm-param=/env/<project>/env.dev --app-path=/var/www/<project> --app-name=<pm2 name>
 ```
 
 **See:** [scripts/db-rotate-password/db-rotate-password.md](scripts/db-rotate-password/db-rotate-password.md)

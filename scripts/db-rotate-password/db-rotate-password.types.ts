@@ -1,8 +1,6 @@
-/** Flags of db-rotate-password.ts. */
+/** Flags of db-rotate-password.ts. The host is not a flag: it is the one the SSM parameter names. */
 export interface RotatePasswordOptions {
-  /** ssh destination of the host the database and the app run on: a Host alias or HostName from ~/.ssh/config. */
-  host: string;
-  /** SSM parameter whose value is the app's env file (it holds DATABASE_URL). */
+  /** SSM parameter whose value is the app's env file: DATABASE_URL, and DEPLOY_HOST (or DB_SSH_HOST) for the host. */
   ssmParam: string;
   /** Remote directory of the app, holding its .env. Needs appName. */
   appPath?: string;
@@ -17,7 +15,7 @@ export interface RotatePasswordSystem {
   hlpr(args: string[], input?: string): string;
   /** Runs one command on the host over ssh, with optional stdin. Throws with ssh's stderr when it fails. */
   ssh(host: string, command: string, input?: string): string;
-  /** The PM2 status of the process on the host: online, stopped, errored, or missing. */
-  pm2Status(host: string, name: string): string;
+  /** The PM2 status of the process on the host the parameter names: online, stopped, errored, or missing. */
+  pm2Status(ssmParam: string, name: string): string;
   log(message: string): void;
 }

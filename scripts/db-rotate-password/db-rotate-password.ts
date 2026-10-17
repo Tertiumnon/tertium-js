@@ -9,11 +9,32 @@ import type {
 //   1. hlpr mariadb rotate-password: the database user, then the SSM parameter that holds DATABASE_URL.
 //   2. The app's remote .env on the same host (a timestamped copy of the old file is kept), then a PM2 restart.
 // If step 2 fails, the .env is put back and restarted, then hlpr sets the old password and the old URL back.
+// The host is not a flag: the parameter names it (DB_SSH_HOST or DEPLOY_HOST, with the matching USER key).
 
 const USAGE =
-  "Usage: db-rotate-password.ts --host=<ssh host> --ssm-param=<name> [--app-path=<dir> --app-name=<pm2 name>] [--dry-run]";
+  "Usage: db-rotate-password.ts --ssm-param=<name> [--app-path=<dir> --app-name=<pm2 name>] [--dry-run]";
 
 const sq = (value: string): string => `'${value.replace(/'/g, "'\\''")}'`;
+
+/** The value of KEY in a .env text: the first assignment, without quotes or a trailing comment. */
+export const envValue = (text: string, key: string): string | undefined => {
+  const match = text.match(
+    new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=\\s*(.*?)\\s*$`, "m"),
+  );
+  if (!match) return undefined;
+  const raw = match[1] ?? "";
+  const quoted = raw.match(/^(['"])(.*)\1$/);
+  return quoted ? quoted[2] : raw.replace(/\s+#.*$/, "");
+};
+
+/** The ssh destination an env value names: user@host, or the host alone when no user is set. */
+export const sshDestinationFromEnv = (text: string): string => {
+  const host = envValue(text, "DB_SSH_HOST") ?? envValue(text, "DEPLOY_HOST");
+  if (host === undefined || host === "")
+    throw new Error("The SSM parameter has no DB_SSH_HOST or DEPLOY_HOST");
+  const user = envValue(text, "DB_SSH_USER") ?? envValue(text, "DEPLOY_USER");
+  return user ? `${user}@${host}` : host;
+};
 
 export const replaceDatabaseUrl = (
   text: string,
@@ -30,6 +51,11 @@ export const replaceDatabaseUrl = (
 };
 
 export const validateOptions = (options: RotatePasswordOptions): void => {
+  if (!/^\/[A-Za-z0-9_./-]+$/.test(options.ssmParam)) {
+    throw new Error(
+      "--ssm-param must be a parameter name such as /env/app/env.prod",
+    );
+  }
   if ((options.appPath === undefined) !== (options.appName === undefined)) {
     throw new Error("--app-path and --app-name go together");
   }
@@ -47,10 +73,9 @@ export const validateOptions = (options: RotatePasswordOptions): void => {
   }
 };
 
-/** Parses `--host=… --ssm-param=… [--app-path=… --app-name=…] [--dry-run]`. */
+/** Parses `--ssm-param=… [--app-path=… --app-name=…] [--dry-run]`. */
 export const parseOptions = (args: string[]): RotatePasswordOptions => {
   const values: {
-    host?: string;
     "ssm-param"?: string;
     "app-path"?: string;
     "app-name"?: string;
@@ -61,15 +86,13 @@ export const parseOptions = (args: string[]): RotatePasswordOptions => {
       dryRun = true;
       continue;
     }
-    const match = arg.match(/^--(host|ssm-param|app-path|app-name)=(.+)$/);
+    const match = arg.match(/^--(ssm-param|app-path|app-name)=(.+)$/);
     const key = match?.[1] as keyof typeof values | undefined;
     if (!match || !key || values[key] !== undefined) throw new Error(USAGE);
     values[key] = match[2];
   }
-  if (values.host === undefined || values["ssm-param"] === undefined)
-    throw new Error(USAGE);
+  if (values["ssm-param"] === undefined) throw new Error(USAGE);
   const options: RotatePasswordOptions = {
-    host: values.host,
     ssmParam: values["ssm-param"],
     appPath: values["app-path"],
     appName: values["app-name"],
@@ -86,70 +109,49 @@ export const rotateAppPassword = async (
   system: RotatePasswordSystem,
 ): Promise<void> => {
   validateOptions(options);
-  const hostArgs = ["-host", options.host];
-  const readUrl = () =>
-    system.hlpr([
-      "aws-param-store",
-      "read",
-      "-name",
-      options.ssmParam,
-      "-key",
-      "DATABASE_URL",
-    ]);
+  const param = options.ssmParam;
   const app = options.appPath !== undefined && options.appName !== undefined;
   const appDir = options.appPath ?? "";
+  const name = options.appName as string;
+
+  // The parameter's env value, read before anything changes: the host and the rollback targets come from it.
+  const readParam = () =>
+    system.hlpr(["aws-param-store", "read", "-name", param]);
+  const before = readParam();
+  const host = sshDestinationFromEnv(before);
+  const oldUrl = envValue(before, "DATABASE_URL");
+  if (oldUrl === undefined)
+    throw new Error("The SSM parameter has no DATABASE_URL");
+
   const restartApp = () =>
-    system.hlpr([
-      "pm2",
-      "restart",
-      "-host",
-      options.host,
-      "-name",
-      options.appName as string,
-    ]);
+    system.hlpr(["pm2", "restart", "-ssm-param", param, "-name", name]);
   const writeEnv = (text: string, backup: boolean) =>
     system.ssh(
-      options.host,
+      host,
       `cd ${sq(appDir)} && ${backup ? `cp .env .env.bak-${timestamp()} && ` : ""}umask 077 && cat > .env.tmp && mv .env.tmp .env`,
       text,
     );
 
-  // The current URL and .env, read before anything changes: they are the rollback targets.
-  const oldUrl = readUrl();
+  // The app's current .env: it is the rollback target, and a missing DATABASE_URL in it fails before anything changes.
   const oldEnv = app
-    ? system.ssh(options.host, `cat ${sq(`${appDir}/.env`)}`)
+    ? system.ssh(host, `cat ${sq(`${appDir}/.env`)}`)
     : undefined;
-  if (oldEnv !== undefined) replaceDatabaseUrl(oldEnv, oldUrl); // fails before anything changes
+  if (oldEnv !== undefined) replaceDatabaseUrl(oldEnv, oldUrl);
 
   if (options.dryRun) {
     system.log(
       system
-        .hlpr([
-          "mariadb",
-          "rotate-password",
-          ...hostArgs,
-          "-ssm-param",
-          options.ssmParam,
-          "-dry-run",
-        ])
+        .hlpr(["mariadb", "rotate-password", "-ssm-param", param, "-dry-run"])
         .trimEnd(),
     );
     if (app)
-      system.log(`Then update ${appDir}/.env and restart ${options.appName}`);
+      system.log(`Then update ${appDir}/.env on ${host} and restart ${name}`);
     return;
   }
 
   // hlpr rolls back its own steps if it fails, so nothing is left to undo when this throws.
   system.log(
-    system
-      .hlpr([
-        "mariadb",
-        "rotate-password",
-        ...hostArgs,
-        "-ssm-param",
-        options.ssmParam,
-      ])
-      .trimEnd(),
+    system.hlpr(["mariadb", "rotate-password", "-ssm-param", param]).trimEnd(),
   );
   if (!app || oldEnv === undefined) return;
 
@@ -159,17 +161,10 @@ export const rotateAppPassword = async (
   const oldUser = new URL(oldUrl).username;
   const undo: { label: string; run: () => void }[] = [
     {
-      label: options.ssmParam,
+      label: param,
       run: () =>
         system.hlpr(
-          [
-            "aws-param-store",
-            "set",
-            "-name",
-            options.ssmParam,
-            "-key",
-            "DATABASE_URL",
-          ],
+          ["aws-param-store", "set", "-name", param, "-key", "DATABASE_URL"],
           oldUrl,
         ),
     },
@@ -177,7 +172,14 @@ export const rotateAppPassword = async (
       label: "database password",
       run: () =>
         system.hlpr(
-          ["mariadb", "set-user-password", "-db-name", oldUser, ...hostArgs],
+          [
+            "mariadb",
+            "set-user-password",
+            "-db-name",
+            oldUser,
+            "-ssm-param",
+            param,
+          ],
           oldPassword,
         ),
     },
@@ -185,22 +187,22 @@ export const rotateAppPassword = async (
 
   let envWritten = false;
   try {
-    const newUrl = readUrl();
+    const newUrl = envValue(readParam(), "DATABASE_URL") as string;
     writeEnv(replaceDatabaseUrl(oldEnv, newUrl), true);
     envWritten = true;
-    system.log(`✓ ${appDir}/.env updated`);
+    system.log(`✓ ${appDir}/.env updated on ${host}`);
 
     restartApp();
-    const status = system.pm2Status(options.host, options.appName as string);
+    const status = system.pm2Status(param, name);
     if (status !== "online")
-      throw new Error(`${options.appName} is ${status} after the restart`);
-    system.log(`✓ ${options.appName} restarted and online`);
+      throw new Error(`${name} is ${status} after the restart`);
+    system.log(`✓ ${name} restarted and online`);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     system.log(`✗ ${reason}`);
     if (envWritten) {
       undo.push({
-        label: `${appDir}/.env and ${options.appName}`,
+        label: `${appDir}/.env and ${name}`,
         run: () => {
           writeEnv(oldEnv, false);
           restartApp();
@@ -218,7 +220,7 @@ export const rotateAppPassword = async (
       }
     }
     throw new Error(
-      `Password rotation for ${options.appName} failed and was rolled back where possible: ${reason}`,
+      `Password rotation for ${name} failed and was rolled back where possible: ${reason}`,
     );
   }
 };
@@ -247,16 +249,23 @@ export const realSystem = (
     return result.stdout;
   },
   // `hlpr pm2 status` exits 1 unless the process is online, which is an answer here, not an error.
-  pm2Status: (host, name) => {
-    const result = spawnSync(
+  pm2Status: (ssmParam, name) => {
+    const command = [
       "hlpr",
-      ["pm2", "status", "-host", host, "-name", name],
-      {
-        encoding: "utf-8",
-        shell: true,
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+      "pm2",
+      "status",
+      "-ssm-param",
+      ssmParam,
+      "-name",
+      name,
+    ]
+      .map((arg) => `"${arg}"`)
+      .join(" ");
+    const result = spawnSync(command, {
+      encoding: "utf-8",
+      shell: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     if (result.error)
       throw new Error(
         `Cannot run hlpr (is it installed?): ${result.error.message}`,
