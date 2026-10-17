@@ -209,30 +209,23 @@ deploy({
 
 **See:** [scripts/deploy/deploy.md](scripts/deploy/deploy.md)
 
-### DB Sync script (`./scripts/db-sync/*`)
+### DB backup and sync moved to hlpr
 
-Copies one MySQL/MariaDB database over another (dev → prod): dumps the source over SSH and pipes
-it straight into the target over a second SSH connection, after a local backup of the target.
-Each side comes from its own env file (`DEPLOY_USER`/`DEPLOY_HOST` + `DATABASE_URL`), the same
-`.env.dev`/`.env.prod` that deploy uses — usually fetched from AWS SSM in memory via
-`aws-env db-sync`.
+The MariaDB backup and sync utilities now live in [hlpr](https://www.npmjs.com/package/@tertium/hlpr):
+`hlpr mariadb backup`, `hlpr mariadb sync` and `hlpr mariadb set-user-password`. They are no longer part of
+this package, and `aws-env` no longer has `db-backup` or `db-sync` subcommands.
 
-```bash
-bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts db-sync --from=.env.dev --to=.env.prod --dry-run
-```
+### DB Rotate Password script (`./scripts/db-rotate-password/*`)
 
-**See:** [scripts/db-sync/db-sync.md](scripts/db-sync/db-sync.md)
-
-### DB Backup script (`./scripts/db-backup/*`)
-
-Creates a full MySQL/MariaDB SQL backup locally or over SSH from the target's `DATABASE_URL`.
-It can read a local env file or fetch one from AWS SSM without writing the credentials to disk.
+Changes a project's database password, the SSM parameter that holds its `DATABASE_URL`, and the app's remote
+`.env` and PM2 process, with rollback if a step fails. The database and parameter steps are `hlpr mariadb
+rotate-password`; the app steps are here, since they are specific to Node/Bun projects.
 
 ```bash
-bun node_modules/@tertium/js/scripts/aws-env/aws-env.ts db-backup --env-file=.env.prod
+bun node_modules/@tertium/js/scripts/db-rotate-password/db-rotate-password.ts --host=<ssh host> --ssm-param=/env/<project>/env.dev --app-path=/var/www/<project> --app-name=<pm2 name>
 ```
 
-**See:** [scripts/db-backup/db-backup.md](scripts/db-backup/db-backup.md)
+**See:** [scripts/db-rotate-password/db-rotate-password.md](scripts/db-rotate-password/db-rotate-password.md)
 
 ### AWS Env script (`./scripts/aws-env/*`)
 

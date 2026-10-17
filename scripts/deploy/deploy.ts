@@ -22,7 +22,6 @@ const run = (command: string, cwd: string): void => {
   console.log(`→ ${command}`);
   // Note: stdio: "inherit" requires object-style options, but TypeScript's
   // ExecSyncOptions type doesn't properly support this combination.
-  // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
   // env passed explicitly: under Bun on Windows a shell child does not inherit
   // process.env changes made at runtime (aws-env deploy merges the target's
   // VITE_* etc. into process.env just before the build), so without it a dist
@@ -32,6 +31,7 @@ const run = (command: string, cwd: string): void => {
     cwd,
     shell: true,
     env: process.env,
+    // biome-ignore lint/suspicious/noExplicitAny: Node.js types limitation
   } as any);
 };
 

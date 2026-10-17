@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/suspicious/noTemplateCurlyInString: these strings are the workflow expression syntax under test */
 import { describe, expect, test } from "bun:test";
 import {
   expand,
