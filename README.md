@@ -267,3 +267,7 @@ The scripts were removed from this package, so a project that still calls them f
 ## Contributing
 
 Contributions, issues and pull requests are welcome. If you add features that change the exported types or scripts, please update the documentation here.
+
+## Support
+
+If this project is useful to you, you can support its development on [Ko-fi](https://ko-fi.com/tertiumnon).
