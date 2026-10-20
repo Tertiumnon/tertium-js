@@ -1,5 +1,7 @@
 # @tertium/js
 
+Reusable TypeScript library of shared core utilities, entity models, and release scripts for JavaScript projects. In development.
+
 > **⚠️ IN DEVELOPMENT** — APIs, scripts, and configuration formats in this package are still changing and may break between versions without notice. Pin an exact version rather than a range, and review the changelog/diff before upgrading.
 
 A reusable TypeScript library providing shared core utilities, entity models, and release automation scripts for JavaScript projects. Includes abstractions for APIs, authentication, filtering, logging, repositories, and domain entities (users, posts, comments).
