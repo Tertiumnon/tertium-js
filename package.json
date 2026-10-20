@@ -30,7 +30,7 @@
     "prepare": "git config core.hooksPath .githooks"
   },
   "author": "Vitalii Balabanov",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@tertium/hlpr": "^0.23.0"
   },

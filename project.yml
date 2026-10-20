@@ -23,3 +23,5 @@ platforms:
       name: "@tertium/js"
 distribution:
   - npm
+publish_on:
+  - https://tertiumnon.github.io
