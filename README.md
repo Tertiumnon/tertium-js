@@ -17,7 +17,7 @@ Because modules are consumed via subpath imports straight from source (no bundli
 
 ## Table of contents
 
-- Installation
+- [Install](docs/INSTALL.md)
 - Usage
   - Importing modules
   - Scripts
@@ -27,14 +27,6 @@ Because modules are consumed via subpath imports straight from source (no bundli
     - AWS Env
     - Moved to hlpr
 - Contributing
-
-## Installation
-
-Install as a dependency or devDependency in your project:
-
-```bash
-npm install @tertium/js --save-dev
-```
 
 ## Usage
 
@@ -267,6 +259,10 @@ The scripts were removed from this package, so a project that still calls them f
 ## Contributing
 
 Contributions, issues and pull requests are welcome. If you add features that change the exported types or scripts, please update the documentation here.
+
+## Documentation
+
+- [Install](docs/INSTALL.md)
 
 ## Support
 
