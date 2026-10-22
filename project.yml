@@ -1,3 +1,20 @@
 type: library
-publish_on:
+slug: tertium-js
+listed_on:
   - https://tertiumnon.github.io
+display_name:
+  en: "@tertium/js"
+summary:
+  en: "Reusable TypeScript library of shared core utilities, entity models, and release scripts for JavaScript projects."
+languages:
+  - en
+default_language: en
+status: alpha
+distribution:
+  - npm
+team:
+  - name: Vitalii Balabanov
+    roles:
+      - owner
+      - developer
+    github: Tertiumnon
